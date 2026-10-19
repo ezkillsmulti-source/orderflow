@@ -49,7 +49,8 @@ proxy configuration for TLS termination and never expose the session ID to
 frontend JavaScript. [ADR 0004](decisions/0004-session-authentication.md) implements
 PostgreSQL sessions, 30-minute idle/eight-hour absolute expiry, session-bound CSRF,
 trusted origins, and shared login throttling. Login, identity, and logout are
-implemented; business role/ownership authorization remains planned.
+implemented; current-role authorization is implemented for catalog creation and reads;
+editing, archiving, and order ownership checks remain pending.
 
 ## First-release scope
 
@@ -63,8 +64,9 @@ implemented; business role/ownership authorization remains planned.
 - Backend role and ownership authorization according to the permission matrix.
 
 These behaviors are intended to be usable through the web application and enforced
-by the backend. Authentication is implemented as described above; catalog,
-inventory, ordering, and frontend workflows remain planned requirements.
+by the backend. Authentication and catalog creation/reads are implemented. Catalog editing and
+archiving, inventory, ordering, and frontend workflows remain planned requirements.
+The approved [catalog contract](product-catalog.md) defines validation and listing policies.
 
 ## Business rules
 
@@ -197,13 +199,13 @@ are outside the current architecture direction.
   lifetimes, CSRF/origin policy, and login limits. Define production account provisioning
   and whether role management needs an administrator interface.
 - Initial product storage uses bounded PostgreSQL BIGINT and Prisma bigint.
-  [ADR 0002](decisions/0002-product-storage.md) selects decimal strings for future
-  JSON integer business values; no product API exists yet. Apply these decisions
+  [ADR 0002](decisions/0002-product-storage.md) selects decimal strings for
+  JSON integer business values; catalog price serialization now implements it. Apply these decisions
   to later quantities and totals. First-release totals need no fractional rounding;
   later taxes, discounts, and provider conversions need their own rounding policies.
-- Product IDs use UUIDs and stored SKUs are currently case-sensitive. Define
-  other ID formats, SKU normalization/API case policy, text length limits,
-  archive visibility, and whether products can be reactivated.
+- Product IDs use UUIDs and stored SKUs are currently case-sensitive. Other ID formats remain future decisions. The
+  [catalog contract](product-catalog.md) selects SKU/text limits, archive visibility,
+  and no reactivation for this task.
 - Define the adjustment-history interface and access policy.
 - Decide required customer information and list filters, sort fields, pagination
   style, and default/maximum page sizes.

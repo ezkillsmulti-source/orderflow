@@ -6,7 +6,7 @@ repository layer or shared workspace package.
 
 ## Current modules
 
-- `AppModule` composes configuration, health, and authentication.
+- `AppModule` composes configuration, health, authentication, and products.
 - `ConfigModule` validates the database URL and API port, exposing one configuration
   provider. Invalid configuration prevents startup; values are not printed.
 - `DatabaseModule` owns one Prisma client and its PostgreSQL driver adapter. The
@@ -41,7 +41,7 @@ settings are for the foundation; assess capacity when business requests exist.
 
 ## Persistence boundary
 
-The initial `Product` table is schema groundwork only. It has UUID identifiers,
+The existing `Product` table now supports catalog creation and reads. It has UUID identifiers,
 case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices in ARS
 minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
 and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps.
@@ -66,8 +66,22 @@ PostgreSQL counters for source/account login limits and global admission. Automa
 table creation and unbounded library cleanup are disabled; migrations create both
 tables. Store/counter failures return sanitized 503 with no in-memory fallback.
 
-Role authorization is implemented and tested through test-only routes; product
-endpoints and order ownership checks remain pending. There is no inventory, orders, frontend,
+`ProductsModule` composes a focused controller/service with DatabaseModule. The
+controller validates bodies, path IDs, and original query strings, enforces wire
+encoding, and maps products to explicit JSON responses. Main enables Nest rawBody
+capture so invalid UTF-8 cannot be silently replaced before validation. Raw bytes
+are request-local and never logged or returned. Custom test applications exercising
+catalog writes must also enable rawBody=true.
+
+ProductsService uses DatabaseService directly; PostgreSQL arbitrates SKU races.
+There is no repository abstraction. Monetary strings are validated before BigInt
+conversion and serialized explicitly. Catalog error types permit fixed conflict
+and availability messages without changing authentication contracts. Unrecognized
+failures remain sanitized 500.
+
+Creation, listing, and detail reads are implemented; editing, archiving, and order
+ownership checks remain pending. See the [catalog contract](product-catalog.md).
+There is no inventory, orders, frontend,
 Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
 for runtime, schema, and serialization choices.

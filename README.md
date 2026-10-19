@@ -6,8 +6,8 @@ PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
 and a GitHub Actions workflow. User persistence with normalized unique emails and
 ADMIN/OPERATOR roles, Argon2id password hashing, and explicit development account
 provisioning are implemented. Session login/identity/logout, PostgreSQL-backed
-sessions, CSRF protection, and shared login throttling are implemented. Business
-features and the frontend remain planned.
+sessions, CSRF protection, and shared login throttling are implemented. Product creation, listing, detail reads, and current-role authorization are
+implemented. Product editing/archiving and the frontend remain planned.
 
 ## Local setup
 
@@ -69,9 +69,10 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 ## Scope and documents
 
 There is no frontend, public registration, password recovery, production account
-provisioning, product CRUD, inventory, ordering, Redis, worker, or deployment yet.
-Authentication alone does not implement business authorization. The Product table alone does not implement catalog
-business behavior. The planned stack adds React/Vite and browser testing when the
+provisioning, product editing/archiving, inventory, ordering, Redis, worker, or deployment yet.
+Catalog endpoints enforce ADMIN writes and ADMIN/OPERATOR reads, including archived
+products. Order ownership authorization remains pending. See the
+[catalog contract](docs/product-catalog.md). The planned stack adds React/Vite and browser testing when the
 frontend is introduced, and background processing only when needed.
 
 - [Product scope and business rules](docs/product-scope.md)

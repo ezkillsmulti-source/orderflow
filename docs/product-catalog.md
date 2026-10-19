@@ -1,0 +1,134 @@
+# Backend product catalog
+
+Creation, listing, and detail reads are implemented. Editing and archiving are
+approved policies pending the next catalog increment. Inventory, orders, frontend,
+and browser tests remain pending. The catalog does not expose or persist stock.
+
+## Authentication and permissions
+
+Every catalog route requires an authenticated active user. The authentication
+guard reloads current role/status from PostgreSQL; the following role guard checks
+permissions before controller validation or product lookup. ADMIN can create and
+read products. OPERATOR can read products, including archived ones. Approved
+editing and archiving operations are ADMIN-only. Roles cannot come from clients
+or session snapshots. This first release supports one business, not tenants.
+
+Unsafe requests require the existing session cookie, exact trusted Origin, and
+current X-CSRF-Token. Origin/CSRF checks run before authentication and can return
+403 before an unauthenticated request reaches the 401 check. Shared throttling and
+health exclusions remain unchanged. Responses use Cache-Control: no-store.
+
+## Endpoint contract
+
+| Endpoint                   | Success                              | Status                 |
+| -------------------------- | ------------------------------------ | ---------------------- |
+| GET /products              | 200 list envelope                    | Implemented            |
+| GET /products/:id          | 200 product                          | Implemented            |
+| POST /products             | 201 product; Location: /products/:id | Implemented            |
+| PATCH /products/:id        | 200 product                          | Planned next increment |
+| POST /products/:id/archive | 200 archived product                 | Planned next increment |
+
+Create accepts sku, name, priceMinor, and optional description. Required fields
+must be present. Unknown fields are rejected, including id, active, and timestamps.
+Creation always sets active=true. IDs are server-generated UUIDs. Malformed UUID
+path parameters return 400; syntactically valid missing IDs return 404.
+
+```json
+{
+  "sku": "CAF-001",
+  "name": "Ground coffee",
+  "description": "250 g bag",
+  "priceMinor": "125000"
+}
+```
+
+Individual responses contain exactly id, sku, name, description, priceMinor,
+active, createdAt, and updatedAt. Timestamps are UTC ISO 8601 strings with
+millisecond precision; description is a string or null. No raw Prisma models are
+returned. Currency is ARS; 100 minor units equal ARS 1.00.
+
+## Validation and SKU policy
+
+- SKU: trim surrounding JavaScript whitespace; 1–64 ASCII characters matching
+  `[A-Za-z0-9][A-Za-z0-9._-]*`. Case-sensitive uniqueness includes archived rows:
+  CAF-001 and caf-001 are distinct; archive never releases a SKU.
+- Name: trim surrounding whitespace; 1–200 Unicode code points.
+- Description: optional or null; trim surrounding whitespace; at most 2,000
+  Unicode code points. Empty becomes null; omission at creation also yields null.
+- Reject malformed Unicode, including unpaired escaped surrogates and invalid
+  UTF-8 wire bytes. Catalog JSON uses UTF-8. Reject U+0000 in text because
+  PostgreSQL TEXT cannot persist it. No case folding or Unicode normalization.
+- priceMinor: canonical decimal string matching `0|[1-9][0-9]*`, from "0" through
+  "9007199254740991". Reject JSON numbers, signs, whitespace, leading zeros,
+  fractions, exponents, and overflow. Validate syntax/length before BigInt parsing;
+  no intermediate Number conversion. Store Prisma bigint/PostgreSQL BIGINT and
+  serialize explicitly with toString(). Preserve the SQL monetary CHECK.
+- Reject non-object bodies, arrays, null, wrong types, and unknown fields.
+  The existing JSON parser limit is 100 KiB.
+
+SKU/name/description policies are API validation; existing SQL enforces SKU
+uniqueness and monetary bounds. No new migration is needed, and previous migrations
+remain unchanged. Direct SQL writers must obey API policies themselves; these
+text bounds are not new SQL constraints.
+
+## Listing
+
+GET /products accepts only status, limit, and offset, each at most once.
+
+| Parameter | Default | Accepted values                   |
+| --------- | ------- | --------------------------------- |
+| status    | active  | active, archived, all             |
+| limit     | 25      | Canonical decimal integer 1–100   |
+| offset    | 0       | Canonical decimal integer 0–10000 |
+
+Order is fixed: createdAt ASC, id ASC. Unknown, repeated, empty, or invalid query
+parameters return 400. Filters apply before pagination. Fetch at most limit+1
+records; return at most limit. There is no total count, search, or configurable
+sorting. Both roles can list archives and read their detail by ID.
+
+```json
+{
+  "items": [],
+  "pagination": { "limit": 25, "offset": 0, "hasMore": false }
+}
+```
+
+Pagination is deterministic for unchanged data, not a consistent snapshot across
+requests. Concurrent creation/archiving can change page membership. Offset is
+bounded at 10,000; deeper navigation would require a separate cursor decision.
+
+## Approved editing and archival policy
+
+PATCH accepts a non-empty subset of sku, name, description, and priceMinor.
+Omitted fields remain unchanged; description=null clears it. Archived products
+cannot be edited or reactivated. Edits must atomically require active=true.
+Simultaneous edits use last-write-wins for submitted fields; optimistic locking
+is not implemented. A SKU edit releases its previous value.
+
+Archive changes active to false and never deletes a row. Repeating archive
+returns the existing representation without changing updatedAt. No reactivation
+or physical deletion endpoint is planned in this task. Future orders must reject
+archived products and preserve immutable snapshots; orders are not implemented.
+
+## Errors
+
+Errors retain the existing envelope: statusCode and a fixed English message.
+
+| Status | Meaning                                                              |
+| ------ | -------------------------------------------------------------------- |
+| 400    | Invalid body, encoding, UUID, or list query                          |
+| 401    | Missing/expired/revoked session or inactive account                  |
+| 403    | Role, CSRF, or Origin denial                                         |
+| 404    | Product does not exist                                               |
+| 409    | Product conflict: duplicate SKU; planned edit of an archived product |
+| 413    | Request body too large                                               |
+| 429    | Existing shared throttle, with Retry-After                           |
+| 503    | Identified storage availability failure                              |
+| 500    | Unexpected internal failure                                          |
+
+Catalog conflicts use "Product conflict."; catalog availability failures use
+"Product storage unavailable.". Existing authentication messages are unchanged.
+Only the identified Product SKU unique violation maps to 409. Known connection,
+query/pool timeout, connection closure, and connection-capacity Prisma codes map
+to 503; unknown database errors remain sanitized 500. No raw driver errors, SQL,
+constraints, or submitted values appear in error responses.

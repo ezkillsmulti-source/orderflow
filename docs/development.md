@@ -436,3 +436,17 @@ keys, and common service-token formats. Candidates were placeholders or syntheti
 test fixtures. No repository content was uploaded and no secret values were printed.
 This does not prove the absence of every possible secret; ignored local files,
 unreachable objects, external logs/artifacts, and remote-only refs were not scanned.
+
+## Backend catalog development
+
+The [catalog contract](product-catalog.md) records implemented creation/reads and
+approved editing/archival policies. Use the existing authentication walkthrough
+to obtain a cookie and the rotated CSRF token. Catalog writes require the same
+trusted Origin and X-CSRF-Token; there is no CLI bypass.
+
+Catalog integration tests use the existing random-database fixture and migrations.
+They cover current roles/status, exact monetary strings, validation, SKU races,
+archive visibility, bounded deterministic pagination, and sanitized errors. Race
+tests synchronize request arrivals explicitly rather than sleeping. Test Nest apps
+exercising catalog writes enable rawBody=true, matching main, to validate UTF-8
+bytes before any catalog mutation. No previous migration is modified.
