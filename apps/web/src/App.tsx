@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from 'react';
 import { ApiError, Cancelled, session } from './api';
+import { Catalog } from './Catalog';
 import { ErrorNotice, useCooldown } from './feedback';
 
 function Login() {
@@ -175,12 +176,7 @@ export function App() {
         ) : state.phase === 'anonymous' ? (
           <Login key={state.generation} />
         ) : (
-          <section className="card" key={state.generation}>
-            <h1 ref={heading} tabIndex={-1}>
-              You are signed in
-            </h1>
-            <p>Your session is ready.</p>
-          </section>
+          <Catalog key={state.generation} user={state.user!} />
         )}
       </main>
     </>

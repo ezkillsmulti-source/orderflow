@@ -1,8 +1,8 @@
 # Roadmap
 
 Milestone 1 delivered the backend foundation. Milestone 2 has accounts, sessions,
-role authorization, the backend catalog, and frontend login/logout. Catalog UI and
-its browser workflow acceptance remain pending. The [product scope](product-scope.md)
+role authorization, the backend catalog, and frontend login/logout. Frontend product browsing is implemented. Administrator forms and full browser
+workflow acceptance remain pending. The [product scope](product-scope.md)
 remains the source of business rules.
 
 ## 1. Reproducible backend foundation

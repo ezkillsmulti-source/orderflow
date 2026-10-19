@@ -407,3 +407,30 @@ dialog::backdrop {
     flex-direction: column;
   }
 }
+
+[tabindex]:focus-visible {
+  outline: 3px solid #5a87ef;
+  outline-offset: 3px;
+}
+table {
+  min-width: 620px;
+}
+td:first-child {
+  min-width: 180px;
+  max-width: 420px;
+  overflow-wrap: anywhere;
+}
+td:nth-child(2) {
+  white-space: nowrap;
+}
+.mobile-hint {
+  display: none;
+}
+@media (max-width: 700px) {
+  .mobile-hint {
+    display: block;
+  }
+  .topbar > .row {
+    justify-content: flex-end;
+  }
+}

@@ -638,3 +638,23 @@ web unit/proxy tests, and four real-API browser checks at 1280x900 and 390x844.
 The rendered login was inspected at both sizes. Automated checks do not establish
 complete accessibility compliance. Full milestone acceptance remains pending the
 catalog UI.
+
+### Browsing the catalog
+
+After login, both roles can list products and open details, including archives.
+Use Product status and Products per page; Previous/Next use hasMore rather than
+an invented total count. List state is encoded in the hash URL and detail back-links
+retain it. Invalid list bounds are rejected; offset never exceeds 10,000.
+
+Prices display in ARS using es-AR grouping with exactly two fractional digits.
+For example the API maximum "9007199254740991" displays as
+"ARS 90.071.992.547.409,91". Formatting splits bigint minor units into pesos and
+centavos; no floating-point monetary conversion occurs. Loading, empty, forbidden,
+unavailable, and missing-product states are distinct. Product text is rendered
+through React text nodes, never HTML. Read-only browser flows cover both viewports.
+
+The browsing increment passed 14 web unit/proxy tests and eight real-API browser
+checks across desktop/mobile, plus formatting, lint, typecheck, and the web build.
+Catalog captures were inspected at both sizes. Narrow screens use a keyboard-focusable
+horizontally scrollable table, with a visible scrolling hint and readable columns.
+Administrator mutation controls remain pending this task's final increment.
