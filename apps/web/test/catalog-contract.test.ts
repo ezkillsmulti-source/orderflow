@@ -3,7 +3,7 @@ import { product, listing } from '../src/catalog-data';
 
 it('preserves the existing catalog and exact money with additive backend image metadata', () => {
   const value = {
-    id: 'product',
+    id: '00000000-0000-4000-8000-000000000001',
     sku: 'IMAGE',
     name: 'Product',
     description: null,
@@ -12,14 +12,14 @@ it('preserves the existing catalog and exact money with additive backend image m
     createdAt: '2026-10-19T00:00:00Z',
     updatedAt: '2026-10-19T00:00:00Z',
     image: {
-      version: 'version',
+      version: '00000000-0000-4000-8000-000000000002',
       thumbnail: {
-        url: '/products/product/image/version/thumbnail',
+        url: '/products/00000000-0000-4000-8000-000000000001/image/00000000-0000-4000-8000-000000000002/thumbnail',
         width: 10,
         height: 8,
       },
       detail: {
-        url: '/products/product/image/version/detail',
+        url: '/products/00000000-0000-4000-8000-000000000001/image/00000000-0000-4000-8000-000000000002/detail',
         width: 10,
         height: 8,
       },

@@ -68,9 +68,8 @@ and the [verification record](development.md#product-workspace-redesign-verifica
 Implemented backend increment: one optional primary image, validated ADMIN
 upload/replacement/removal on active products, authenticated variant reads for both
 roles including archives, and bounded recoverable cleanup. The lifecycle and limits
-are recorded in the catalog contract and storage ADR. Browser upload/preview,
-thumbnail/detail display, replacement/removal flows, and accessible image fallbacks
-remain pending; milestone 4A is not complete. A gallery is deferred.
+are recorded in the catalog contract and storage ADR. Browser thumbnail/detail display and accessible image fallbacks are implemented.
+Upload/preview and replacement/removal controls remain pending; milestone 4A is not complete. A gallery is deferred.
 
 ## 4B/4C. Accountable inventory
 

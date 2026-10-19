@@ -154,3 +154,14 @@ The user inspected the isolated local preview and reported that the design looks
 good and works correctly. This is user feedback from manual use, recorded separately
 from the automated verification above; it is not an additional test run, a complete
 acceptance audit, or proof of accessibility compliance.
+
+## Primary image display (milestone 4A)
+
+Catalog pictures occupy a reserved 56px square beside the linked product name,
+without adding columns or hiding SKU/price/status/actions. Details reserve a 4:3
+frame, with contain sizing to preserve the actual image aspect ratio. A muted icon
+and explicit accessible labels distinguish No image from Image unavailable. Loading
+reserves the same frame. Images use descriptive alt text and authenticated,
+application-relative URLs; malformed/foreign descriptor URLs are rejected before
+rendering. Image management follows in a separate increment. Existing burgundy
+colors, focus treatment, table scroll region, and hash navigation are retained.

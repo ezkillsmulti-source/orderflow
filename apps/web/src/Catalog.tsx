@@ -10,6 +10,7 @@ import {
 } from './catalog-data';
 import { ArchiveDialog } from './ArchiveDialog';
 import { EditProduct, ProductForm } from './ProductForm';
+import { ProductImage } from './ProductImage';
 import { useProduct } from './use-product';
 import { formatPrice } from './money';
 import {
@@ -160,6 +161,10 @@ function ProductDetail({
           }}
         />
       )}
+      <section className="card image-panel" aria-labelledby="image-title">
+        <h2 id="image-title">Product image</h2>
+        <ProductImage data={data} />
+      </section>
       <div className="detail-grid">
         <section className="card" aria-labelledby="identity-title">
           <h2 id="identity-title">Product information</h2>
@@ -356,13 +361,16 @@ function ProductList({
                     {state.data.items.map((data) => (
                       <tr key={data.id}>
                         <td className="name-cell">
-                          <a
-                            className="product-name"
-                            href={`#products/${data.id}`}
-                            onClick={() => remember(back)}
-                          >
-                            {data.name}
-                          </a>
+                          <div className="product-label">
+                            <ProductImage data={data} thumbnail />
+                            <a
+                              className="product-name"
+                              href={`#products/${data.id}`}
+                              onClick={() => remember(back)}
+                            >
+                              {data.name}
+                            </a>
+                          </div>
                         </td>
                         <td className="sku-cell">
                           <code>{data.sku}</code>

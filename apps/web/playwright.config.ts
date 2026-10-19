@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'list',
   preserveOutput: 'never',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.E2E_WEB_ORIGIN ?? 'http://127.0.0.1:5173',
     trace: 'off',
     screenshot: 'off',
     video: 'off',

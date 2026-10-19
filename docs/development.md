@@ -932,3 +932,23 @@ Concurrency checks use explicit gates and database lock observations rather than
 arbitrary sleeps. No deployment, hosted CI, real power-loss drill, or object-storage
 implementation was performed. Original migrations and private local configuration
 were preserved.
+
+### Product image browser display
+
+The catalog shows authenticated thumbnails; details show the larger variant. No
+image and failed-load placeholders are distinct. Backend descriptor paths are
+validated against the product/version/variant, then prefixed with `/api` once.
+Existing setup commands apply; image data requires PRODUCT_IMAGE_STORAGE_DIR and
+committed migrations as documented above. This display increment has no upload UI.
+
+The browser runner now selects separate loopback API and Vite ports, explicitly
+trusts only its generated web origin, and creates private temporary image storage
+and synthetic fixtures. It removes those resources and its random database on
+success/failure. It never inherits user image storage or occupies port 5173.
+`pnpm test:browser` includes real authenticated image-load and fallback checks.
+
+Display increment verification: 46 web tests, web typecheck/build, root lint and
+format checks passed. Four focused real-API image browser cases passed at desktop
+and mobile sizes. Synthetic catalog/detail/failure captures were visually reviewed;
+no page overflow was observed. Image assertions wait for the expected variant URL
+and successful native decoding, rather than a previous screen's image.
