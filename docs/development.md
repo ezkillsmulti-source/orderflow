@@ -583,3 +583,29 @@ and 136 PostgreSQL catalog/authentication integration tests passed after the fix
 The full local suite was not repeated. All random review databases were removed
 and the dedicated PostgreSQL 17.6 server was stopped. No existing migration or
 local .env was changed. Hosted CI results are tracked separately on the PR.
+
+## React frontend
+
+The frontend foundation is in apps/web (React, Vite, strict TypeScript). Authentication
+and catalog screens are introduced in subsequent task commits. Run `pnpm dev` for
+the API, and `pnpm dev:web` in another terminal. Open http://127.0.0.1:5173.
+Set AUTH_TRUSTED_ORIGINS to include that exact origin while retaining any CLI origin.
+Existing .env files are never rewritten: update the trusted-origin list locally.
+
+Vite binds 127.0.0.1:5173 with strictPort. Relative /api requests are proxied to
+127.0.0.1:3000 with the prefix removed and browser Origin preserved. An optional
+server-only API_PROXY_TARGET in apps/web/.env.local can select another local API
+address; for example `API_PROXY_TARGET=http://127.0.0.1:3000`. No API secret belongs
+in a VITE_ variable or browser bundle. The Vite development proxy is not production
+hosting. A future deployment needs a same-origin reverse proxy and HTTPS.
+
+Root build/typecheck/test commands include both packages. `pnpm test:integration`
+continues to run the isolated PostgreSQL backend suite. The proxy test exercises
+real local HTTP forwarding and preserves cookie attributes.
+
+Dependency compatibility was checked on 2026-10-19 against official documentation:
+[React versions](https://react.dev/versions), [Vite requirements](https://vite.dev/guide/),
+[Vitest requirements](https://vitest.dev/guide/), and [Playwright installation](https://playwright.dev/docs/intro).
+Exact stable versions are pinned in apps/web/package.json. Node 24.22.0 satisfies
+the selected tools' engine ranges. No UI kit, state framework, or client-side router
+is added at this stage.

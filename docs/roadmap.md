@@ -2,8 +2,8 @@
 
 Milestone 1 targets the backend foundation only. The frontend originally included in
 that milestone is deferred by the revised scope. Milestone 2 has user accounts, session
-authentication, role authorization, and the backend catalog; frontend and later
-milestones remain planned. The [product scope](product-scope.md) remains the source of
+authentication, role authorization, and the backend catalog; a React/Vite foundation is implemented, while frontend workflows and later
+milestones remain pending. The [product scope](product-scope.md) remains the source of
 business rules.
 
 ## 1. Reproducible backend foundation

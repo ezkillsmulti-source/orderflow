@@ -91,3 +91,10 @@ orders, frontend, Redis, or worker. Future business features remain governed by 
 [product scope](product-scope.md). See the
 [decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
 choices.
+
+## Web foundation
+
+apps/web adds a React/Vite application with strict TypeScript and plain CSS. Vite's
+local /api proxy preserves Origin and cookie attributes; the API continues to enforce
+authentication, roles, CSRF, and trusted origins. The initial foundation has no
+authentication or catalog UI yet. Root checks include the web package.
