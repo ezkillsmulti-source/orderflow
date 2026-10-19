@@ -8,7 +8,7 @@ Argon2id password hashing, and explicit development account provisioning are
 implemented. Session login/identity/logout, PostgreSQL-backed sessions, CSRF protection,
 and shared login throttling are implemented. The backend catalog implements product
 creation, listing, detail reads, editing, and archiving with current-role authorization.
-The React/Vite frontend foundation is in apps/web; authentication and catalog UI remain pending.
+The React/Vite frontend foundation is in apps/web; login, identity restoration, and logout are implemented; catalog UI remains pending.
 See the [frontend startup instructions](docs/development.md#react-frontend).
 
 ## Local setup
@@ -70,7 +70,7 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 
 ## Scope and documents
 
-There is no frontend, public registration, password recovery, production account
+There is no public registration, password recovery, production account
 provisioning, inventory, ordering, Redis, worker, or deployment yet. Catalog endpoints
 enforce ADMIN writes and ADMIN/OPERATOR reads, including archived products. Order
 ownership authorization remains pending. See the [catalog

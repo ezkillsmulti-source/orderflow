@@ -87,7 +87,7 @@ changes or new migration are required.
 
 The backend catalog and role authorization are implemented. Order ownership checks
 remain pending. See the [catalog contract](product-catalog.md). There is no inventory,
-orders, frontend, Redis, or worker. Future business features remain governed by the
+orders, Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the
 [decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
 choices.
@@ -96,5 +96,7 @@ choices.
 
 apps/web adds a React/Vite application with strict TypeScript and plain CSS. Vite's
 local /api proxy preserves Origin and cookie attributes; the API continues to enforce
-authentication, roles, CSRF, and trusted origins. The initial foundation has no
-authentication or catalog UI yet. Root checks include the web package.
+authentication, roles, CSRF, and trusted origins. SessionClient owns memory-only CSRF and session identity. Epochs and AbortController
+prevent stale requests from restoring old account data. React subscribes through
+useSyncExternalStore; no global state framework or token persistence is used.
+Login/logout are implemented; catalog UI remains pending. Root checks include the web package.

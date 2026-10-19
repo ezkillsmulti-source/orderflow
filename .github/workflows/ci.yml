@@ -45,3 +45,6 @@ jobs:
       - run: pnpm test
       - run: pnpm test:integration
       - run: pnpm build
+      - name: Install Chromium and browser dependencies
+        run: pnpm --filter @orderflow/web exec playwright install --with-deps chromium
+      - run: pnpm test:browser

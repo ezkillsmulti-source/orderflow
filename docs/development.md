@@ -586,8 +586,8 @@ local .env was changed. Hosted CI results are tracked separately on the PR.
 
 ## React frontend
 
-The frontend foundation is in apps/web (React, Vite, strict TypeScript). Authentication
-and catalog screens are introduced in subsequent task commits. Run `pnpm dev` for
+The frontend foundation is in apps/web (React, Vite, strict TypeScript). Login, identity restoration, and logout are implemented. Catalog screens remain
+pending the next task commits. Run `pnpm dev` for
 the API, and `pnpm dev:web` in another terminal. Open http://127.0.0.1:5173.
 Set AUTH_TRUSTED_ORIGINS to include that exact origin while retaining any CLI origin.
 Existing .env files are never rewritten: update the trusted-origin list locally.
@@ -609,3 +609,32 @@ Dependency compatibility was checked on 2026-10-19 against official documentatio
 Exact stable versions are pinned in apps/web/package.json. Node 24.22.0 satisfies
 the selected tools' engine ranges. No UI kit, state framework, or client-side router
 is added at this stage.
+
+### Browser checks
+
+From the root run `pnpm --filter @orderflow/web browser:install` once, then
+`pnpm test:browser`. Linux CI installs OS dependencies with
+`pnpm --filter @orderflow/web exec playwright install --with-deps chromium`.
+The runner loads TEST_DATABASE_ADMIN_URL, creates only a random test database,
+applies migrations, provisions ephemeral accounts, starts API/Vite, and cleans up
+servers/database even on failure. It never migrates the database in the admin URL.
+Port 5173 must be free; an existing developer frontend is never reused.
+
+Playwright runs Chromium at desktop/mobile sizes, with isolated browser contexts
+and condition-based assertions. Traces, video, screenshots, persisted storage state,
+and public artifact uploads are disabled. Test account secrets are redacted from
+runner output. No credentials or tokens belong in browser storage or logs.
+
+Authentication uses relative /api requests and browser-managed HttpOnly cookies.
+CSRF is memory-only, acquired before login and replaced using login's csrfToken.
+Identity is restored through /auth/me. A generation boundary cancels old requests
+and rejects stale responses after logout/account changes. A failed logout retains
+identity and reports an uncertain outcome; 503 does not imply unauthenticated.
+403 triggers identity revalidation and invalidates the cached CSRF token, without
+assuming token expiration or replaying a mutation. No mutation retries are automatic.
+
+The authentication increment passed formatting, lint, typecheck, both builds, seven
+web unit/proxy tests, and four real-API browser checks at 1280x900 and 390x844.
+The rendered login was inspected at both sizes. Automated checks do not establish
+complete accessibility compliance. Full milestone acceptance remains pending the
+catalog UI.
