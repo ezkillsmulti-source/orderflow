@@ -28,3 +28,22 @@ The maintained Nest Express/Multer integration and sharp support this increment:
 [Multer releases](https://github.com/expressjs/multer/releases),
 [sharp installation](https://sharp.pixelplumbing.com/install/), and
 [sharp processing timeout](https://sharp.pixelplumbing.com/api-output/#timeout).
+
+Multer 2.4.0 (through Nest's FileInterceptor) handles multipart parsing. A small
+byte-counting Transform uses Multer's supported streamHandler extension, preserving
+JSON parser limits and avoiding a second multipart parser. Two in-flight upload
+slots per process bound reception and native work. Rejected body drains also have a
+receive deadline. sharp 0.35.5 supports the pinned Node 24 toolchain and native
+processing timeouts; timeout errors are sanitized, not implemented as Promise.race.
+APNG animation control chunks are rejected explicitly because image libraries can
+otherwise return only the default PNG frame. No client-controlled path is used.
+
+The CLI's default dry run is bounded; apply uses transactional claims, a 24-hour
+safety age and retry lease, and reference exclusion. Publication checks candidate
+state/expiry while updating it under the product lock, so cleanup cannot publish a
+deleted candidate. Cleanup is not scheduled automatically. Host clocks must remain
+synchronized. Database metadata tombstones currently grow; disk errors, missing
+current files, and operational cleanup failures need operator attention. Native
+processing budgets do not bound filesystem stalls or libuv queue waiting. Local
+filesystem durability still depends on the host filesystem, persistent volume,
+backup policy, and deployment topology.

@@ -2,6 +2,10 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Put,
+  Delete,
+  HttpCode,
+  UseInterceptors,
   Param,
   Req,
   Res,
@@ -10,6 +14,11 @@ import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
 import { Roles } from '../../auth/roles.js';
 import { productId } from '../product.validation.js';
+import { productResponse } from '../product.response.js';
+import {
+  ImageUploadInterceptor,
+  type ImageUploadRequest,
+} from './image-upload.interceptor.js';
 import { ImagesService } from './images.service.js';
 
 @Roles('ADMIN', 'OPERATOR')
@@ -49,5 +58,44 @@ export class ImagesController {
     } catch {
       if (!res.destroyed) res.destroy();
     }
+  }
+
+  @Roles('ADMIN')
+  @Put(':id/image')
+  @UseInterceptors(ImageUploadInterceptor)
+  async replace(
+    @Param('id') id: string,
+    @Req() req: ImageUploadRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!req.file || !req.imageVersion) throw new BadRequestException();
+    return productResponse(
+      await this.images.replace(
+        productId(id),
+        req.imageVersion,
+        req.file.path,
+        req.file.mimetype,
+      ),
+    );
+  }
+
+  @Roles('ADMIN')
+  @Delete(':id/image')
+  @HttpCode(204)
+  async remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (
+      Object.keys(req.query).length ||
+      (req.headers['content-length'] &&
+        req.headers['content-length'] !== '0') ||
+      req.headers['transfer-encoding']
+    )
+      throw new BadRequestException();
+    res.setHeader('Cache-Control', 'no-store');
+    await this.images.remove(productId(id));
   }
 }

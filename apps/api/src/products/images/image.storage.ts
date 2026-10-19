@@ -23,7 +23,11 @@ export function imageDirectory(raw: string | undefined) {
   if (!raw) return undefined;
   const path = resolve(raw);
   const inside = relative(workspace(), path);
-  if (!isAbsolute(raw) || !inside.startsWith('..') || path === '/')
+  if (
+    !isAbsolute(raw) ||
+    !(inside === '..' || inside.startsWith('../')) ||
+    path === '/'
+  )
     throw new Error(
       'PRODUCT_IMAGE_STORAGE_DIR must be an absolute private directory outside the workspace.',
     );
@@ -131,11 +135,26 @@ export class ImageStorage {
   async remove(version: string) {
     if (!uuid.test(version)) throw new Error('Invalid internal image version.');
     try {
+      const path = join(await this.root(), version);
+      let missing = false;
+      try {
+        await lstat(path);
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        )
+          missing = true;
+        else throw error;
+      }
       // rm does not follow symlinks. The root must remain private to the API user.
-      await rm(join(await this.root(), version), {
+      await rm(path, {
         recursive: true,
         force: true,
       });
+      return { missing };
     } catch (error) {
       return filesystemError(error);
     }

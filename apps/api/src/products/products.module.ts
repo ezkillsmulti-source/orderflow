@@ -1,3 +1,6 @@
+import { ImageProcessor } from './images/image.processor.js';
+import { ImageCleanup } from './images/image.cleanup.js';
+import { ImageUploadInterceptor } from './images/image-upload.interceptor.js';
 import { ImagesController } from './images/images.controller.js';
 import { ImagesService } from './images/images.service.js';
 import {
@@ -16,6 +19,9 @@ import { ProductsService } from './products.service.js';
   providers: [
     ProductsService,
     ImagesService,
+    ImageProcessor,
+    ImageCleanup,
+    ImageUploadInterceptor,
     ImageStorage,
     {
       provide: IMAGE_DIRECTORY,

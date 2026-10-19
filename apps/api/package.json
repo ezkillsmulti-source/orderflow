@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "users:provision:dev": "pnpm build && node --env-file-if-exists=../../.env dist/src/users/provision-main.js"
+    "users:provision:dev": "pnpm build && node --env-file-if-exists=../../.env dist/src/users/provision-main.js",
+    "images:cleanup": "pnpm build && node --env-file-if-exists=../../.env dist/src/products/images/cleanup-main.js"
   },
   "dependencies": {
     "@nestjs/common": "12.2.0",

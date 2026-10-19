@@ -65,11 +65,17 @@ and the [verification record](development.md#product-workspace-redesign-verifica
 
 ## 4A. Product images
 
-Backend increment: one optional primary image with authenticated reads and a private
-recoverable storage lifecycle. Upload/removal and cleanup complete this backend
-increment; browser image workflows remain pending. A gallery is deferred.
+Implemented backend increment: one optional primary image, validated ADMIN
+upload/replacement/removal on active products, authenticated variant reads for both
+roles including archives, and bounded recoverable cleanup. The lifecycle and limits
+are recorded in the catalog contract and storage ADR. Browser upload/preview,
+thumbnail/detail display, replacement/removal flows, and accessible image fallbacks
+remain pending; milestone 4A is not complete. A gallery is deferred.
 
 ## 4B/4C. Accountable inventory
+
+Both remain planned: 4B delivers the backend inventory rules; 4C delivers the
+agreed inventory workspace using real API data. Image work does not implement stock.
 
 Deliver available-stock visibility and administrator adjustments using signed
 integer deltas, non-empty reasons, and authenticated actors. Select the

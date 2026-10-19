@@ -858,3 +858,77 @@ this directory alongside PostgreSQL backups. When unset, existing routes continu
 to work and operations requiring image storage return sanitized 503 responses.
 Apply the committed image migration with `pnpm db:migrate`. See
 [ADR 0005](decisions/0005-product-image-storage.md) for lifecycle and deployment limits.
+
+### Image cleanup and recovery
+
+With the pinned toolchain selected, run from the repository root:
+
+```sh
+pnpm db:migrate
+pnpm images:cleanup --limit=100
+pnpm images:cleanup --limit=100 --apply
+```
+
+Dry-run is the default. A batch is at most 1000 rows (default 100). It reports only
+mode and aggregate eligible/deleted/missing/failed counts; any failure exits nonzero.
+It does not print paths, credentials, or submitted filenames. PostgreSQL
+`FOR UPDATE SKIP LOCKED` claims eligible versions transactionally before deletion.
+Current references and PUBLISHED versions are always excluded. New/retired versions
+have a 24-hour safety age; claims, retries, and DELETED tombstone resweeps also use
+24 hours. Keep API/CLI host clocks synchronized with PostgreSQL. No automatic
+scheduler is installed: run bounded batches operationally and monitor failures.
+
+Failed filesystem deletion retains a claim for retry. A crash after deletion but
+before marking DELETED is safe: missing directories count as recoverable cleanup.
+A paused writer cannot publish after cleanup claims its candidate. Retained
+DELETED tombstones permit later cleanup of files left by resumed writers. Metadata
+rows currently accumulate; tombstone compaction is deferred. Unknown, unregistered
+directories are deliberately not traversed or deleted by this CLI.
+
+For a missing current file, restore the matching version from a coordinated backup,
+or deliberately replace/remove it through the API as an administrator. The GET
+returns a fixed 503 and never exposes a filesystem path. Cleanup cannot repair the
+original bytes and never removes a current pointer. A database outage may leave a
+registered unpublished candidate for later cleanup; an uncertain publication commit
+is never blindly deleted by request cleanup.
+
+### Image API verification
+
+Use existing `/auth/csrf` and `/auth/login` authentication as documented above. Keep
+cookie jars and token variables private and out of shell history/output. A multipart
+client must send the current `x-csrf-token` and trusted `Origin`, attach one `image`
+file, and allow the client to generate its multipart boundary. Do not use JSON for
+uploads. Read the returned descriptor and request its backend URL with the same
+session cookie. Use the `/api` prefix only when accessing through the Vite proxy.
+Delete through the ADMIN endpoint and refresh product state; repeated deletion is 204. This backend increment does not add browser image controls.
+
+Automated image tests generate synthetic fixtures, create/drop random PostgreSQL
+databases on TEST_DATABASE_ADMIN_URL, and use private temporary storage. Run:
+
+```sh
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:integration
+pnpm build
+```
+
+### Product image backend verification — 2026-10-19
+
+Verified locally with Node 24.22.0 and pnpm 10.34.7: frozen installation, formatting,
+lint, API/web typechecks, 104 API unit/HTTP tests, 44 web tests, 210 PostgreSQL
+integration tests (40 image integration cases), and API/web builds passed. The 32
+existing desktop/mobile Chromium scenarios also passed against isolated real API
+processes and PostgreSQL. These demonstrate compatibility of the existing UI with
+the additive product response, not browser image upload/display workflows.
+
+Image verification used synthetic JPEG/PNG/WebP fixtures and temporary private
+storage. It covered exact byte/dimension/pixel boundaries, chunked body limits,
+metadata removal, static-only inputs, role changes, CSRF/origin, obsolete versions,
+missing files, receive timeouts, client aborts, publication rollback/uncertain
+response, row-lock races, cleanup claiming/retries, and the executable cleanup CLI.
+Concurrency checks use explicit gates and database lock observations rather than
+arbitrary sleeps. No deployment, hosted CI, real power-loss drill, or object-storage
+implementation was performed. Original migrations and private local configuration
+were preserved.
