@@ -20,7 +20,8 @@
     "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev",
     "users:provision:dev": "pnpm --filter @orderflow/api users:provision:dev",
     "dev:web": "pnpm --filter @orderflow/web dev",
-    "test:browser": "pnpm --filter @orderflow/api db:generate && pnpm --filter @orderflow/api exec tsc -p tsconfig.test.json && node --env-file-if-exists=.env apps/api/.test-dist/test/browser-runner.js"
+    "test:browser": "pnpm --filter @orderflow/api db:generate && pnpm --filter @orderflow/api exec tsc -p tsconfig.test.json && node --env-file-if-exists=.env apps/api/.test-dist/test/browser-runner.js",
+    "images:cleanup": "pnpm --filter @orderflow/api images:cleanup"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

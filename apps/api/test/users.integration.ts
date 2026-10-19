@@ -71,6 +71,16 @@ describe('user persistence', () => {
     try {
       upgrade.migrate(true);
       const product = await upgrade.client.product.create({
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          description: true,
+          priceMinor: true,
+          active: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         data: {
           sku: 'UPGRADE',
           name: 'Preserved',
@@ -81,7 +91,7 @@ describe('user persistence', () => {
       upgrade.migrate();
       expect(
         await upgrade.client.product.findUnique({ where: { id: product.id } }),
-      ).toEqual(product);
+      ).toEqual({ ...product, imageId: null });
       await expect(
         upgrade.client.product.create({
           data: { sku: 'BAD', name: 'Invalid', priceMinor: -1n },
@@ -96,6 +106,7 @@ describe('user persistence', () => {
         { migration_name: '20261019010000_user_accounts' },
         { migration_name: '20261019020000_http_sessions' },
         { migration_name: '20261019030000_login_limits' },
+        { migration_name: '20261020000000_product_images' },
       ]);
     } finally {
       await upgrade.close();

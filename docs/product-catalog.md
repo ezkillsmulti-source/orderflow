@@ -150,3 +150,74 @@ physical deletion or inventory operation exists.
 
 For an executable authenticated ADMIN/OPERATOR walkthrough, see
 [development](development.md#manual-catalog-walkthrough).
+
+## Primary image (milestone 4A backend)
+
+Each product response includes `image: null` or:
+
+```json
+{
+  "version": "00000000-0000-4000-8000-000000000001",
+  "thumbnail": {
+    "url": "/products/PRODUCT_ID/image/VERSION/thumbnail",
+    "width": 320,
+    "height": 240
+  },
+  "detail": {
+    "url": "/products/PRODUCT_ID/image/VERSION/detail",
+    "width": 1600,
+    "height": 1200
+  }
+}
+```
+
+URLs are backend paths. The Vite frontend's `/api` proxy prefix must be added once
+by a future image client, never stored in metadata. Dimensions describe the encoded
+variants. JSON product writes cannot assign image fields, IDs, or storage keys.
+
+`GET /products/:id/image/:version/:variant` accepts `thumbnail` or `detail` and no
+query parameters. ADMIN and OPERATOR may read current images, including archived
+products. Missing products, absent images, and obsolete versions return 404.
+Invalid identifiers/variants return 400. Missing current files return a sanitized
+503, rather than exposing paths or silently deleting metadata. Responses stream
+WebP with private/no-store caching, nosniff, and same-origin resource policy.
+
+`PUT /products/:id/image` is ADMIN-only and accepts `multipart/form-data` with
+exactly one file named `image`, no text fields, query parameters, or extra files.
+It returns 200 with the complete updated product representation. Creation of a
+product remains separate. Authentication and current-role guards precede Multer;
+the existing origin, CSRF header, and shared throttling middleware precede uploads.
+
+Inputs are static JPEG, PNG, or WebP. File bytes (not filename extensions) determine
+format; declared MIME must match that format or be `application/octet-stream`.
+Unsupported signatures or mismatched MIME return 415. Corrupt, truncated, animated
+(including APNG), excessive-dimension, or excessive-pixel inputs return 422. File
+bytes are limited to 5 MiB and the whole multipart body to 6 MiB (413), including
+chunked requests. Unknown fields, missing/extra files, and malformed multipart
+return 400. Dimensions are at most 8192 per side and 24,000,000 decoded pixels.
+
+Processing autoorients, converts to sRGB, strips metadata, and emits WebP quality 82. Detail fits within 1600x1600; thumbnail fits within 320x320. Neither variant is
+cropped or enlarged. Thumbnail derives from the normalized detail. Originals are
+removed before successful publication; failed candidates are cleaned immediately
+when possible, otherwise by operational cleanup. No original download exists.
+
+At most two uploads are received/processed per API process, with no application
+queue; excess uploads return 429 with Retry-After. Reception, including rejected
+body drains, ends after ten seconds with 408/connection close. sharp uses its native
+five-second processing timeout per transform. This is a native processing budget,
+not a guarantee for filesystem I/O or waiting for a libuv thread. No mutation is
+automatically replayed after any failure or uncertain response.
+
+`DELETE /products/:id/image` is ADMIN-only, takes no body or query, and returns 204. Absence is idempotent and preserves updatedAt; successful replacement/removal
+updates the product. Archived products reject either mutation with 409, including
+removal of an absent image. Missing products return 404. Both roles can still read
+archived images. Repeated product archival preserves image state and updatedAt.
+
+Publication, removal, and archival serialize on the product row. Simultaneous
+uploads use last-successful-publication semantics. An upload prepared before an
+archive cannot publish afterward. A deliberately later publication may replace an
+image removed while that upload was being prepared. Clients must refresh after a
+confirmed mutation. A network failure can leave the outcome uncertain: read current
+state and require deliberate user action rather than automatically resubmitting.
+Only known database availability errors become 503; unexpected errors remain 500.
+All error messages are fixed and exclude submitted values and internal paths.

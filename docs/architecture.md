@@ -124,3 +124,19 @@ uses the real API and a random, migrated PostgreSQL database with ephemeral acco
 its runner cleans up children and the database on success or failure. CI retains the
 backend checks and adds Chromium installation and browser workflows. Production web
 hosting and reverse-proxy configuration remain planned.
+
+Product images remain in the ProductsModule with explicit response mapping and a
+small private local storage boundary. PostgreSQL tracks lifecycle candidates and
+retired versions; authenticated controllers stream current variants. See
+[ADR 0005](decisions/0005-product-image-storage.md). No public static directory, generic
+asset framework, or frontend image workflow is introduced.
+
+For images, the controller validates identifiers and maps safe product descriptors;
+global authentication/role guards and request-protection middleware precede the
+multipart interceptor. The interceptor owns the receive budget and admission slots.
+ImageProcessor owns format checks and native normalization; ImagesService prepares
+candidates and owns short publication/removal transactions. Archive's conditional
+product update takes the same PostgreSQL row lock. ImageStorage owns private fixed
+paths and file handles. ImageCleanup owns bounded transactional claims and recovery,
+without a generic repository layer or background worker. The additional SQL owner
+foreign key is intentional and must be retained when authoring future migrations.

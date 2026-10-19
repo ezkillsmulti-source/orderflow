@@ -41,6 +41,8 @@ beforeEach(() => {
     ...data,
     description: data.description ?? null,
     active: true,
+    imageId: null,
+    image: null,
     createdAt: new Date(0),
     updatedAt: new Date(0),
   }));

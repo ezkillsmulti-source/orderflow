@@ -63,7 +63,19 @@ lint, typecheck, and both builds. Rendered screens were inspected at 1280x900 an
 checks do not establish full accessibility compliance. See [UI design](ui-design.md)
 and the [verification record](development.md#product-workspace-redesign-verification--2026-10-19).
 
-## 4. Accountable inventory
+## 4A. Product images
+
+Implemented backend increment: one optional primary image, validated ADMIN
+upload/replacement/removal on active products, authenticated variant reads for both
+roles including archives, and bounded recoverable cleanup. The lifecycle and limits
+are recorded in the catalog contract and storage ADR. Browser upload/preview,
+thumbnail/detail display, replacement/removal flows, and accessible image fallbacks
+remain pending; milestone 4A is not complete. A gallery is deferred.
+
+## 4B/4C. Accountable inventory
+
+Both remain planned: 4B delivers the backend inventory rules; 4C delivers the
+agreed inventory workspace using real API data. Image work does not implement stock.
 
 Deliver available-stock visibility and administrator adjustments using signed
 integer deltas, non-empty reasons, and authenticated actors. Select the
