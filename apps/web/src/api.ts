@@ -208,6 +208,7 @@ export class SessionClient {
       if (epoch !== this.epoch) throw new Cancelled();
       this.invalidate();
     } catch (error) {
+      if (epoch !== this.epoch) throw new Cancelled();
       if (error instanceof ApiError && error.status === 401) this.invalidate();
       else if (error instanceof ApiError && error.status === 403)
         await this.forbidden();
@@ -230,6 +231,7 @@ export class SessionClient {
         this.publish('authenticated', current, true);
       }
     } catch (error) {
+      if (epoch !== this.epoch) return;
       if (error instanceof ApiError && error.status === 401) this.invalidate();
       // An outage is not evidence that the session ended. Never replay the mutation.
     }
@@ -243,6 +245,7 @@ export class SessionClient {
       if (epoch !== this.epoch) throw new Cancelled();
       return result;
     } catch (error) {
+      if (epoch !== this.epoch) throw new Cancelled();
       if (error instanceof ApiError && error.status === 401) this.invalidate();
       else if (error instanceof ApiError && error.status === 403)
         await this.forbidden();

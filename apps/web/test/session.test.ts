@@ -178,3 +178,50 @@ it('bounds a stalled mutation and reports an uncertain outcome without retry', a
     vi.useRealTimers();
   }
 });
+
+it.each(['read-401', 'read-403', 'logout-401', 'revalidation-401'])(
+  'ignores a settled previous-session denial during account change: %s',
+  async (scenario) => {
+    const { fetcher, client } = setup();
+    await login(fetcher, client);
+    let begin!: () => void;
+    const started = new Promise<void>((resolve) => {
+      begin = resolve;
+    });
+    let accountChange!: Promise<void>;
+    const denied = json({}, scenario === 'read-403' ? 403 : 401);
+    // Decode the body first, then switch account before the public rejection
+    // handler runs. This exercises already-settled errors, not just aborted fetches.
+    vi.spyOn(denied, 'json').mockImplementation(() => {
+      queueMicrotask(() =>
+        queueMicrotask(() =>
+          queueMicrotask(() => {
+            accountChange = client.login(
+              'different@example.test',
+              'synthetic passphrase',
+            );
+            begin();
+          }),
+        ),
+      );
+      return Promise.resolve({});
+    });
+    if (scenario === 'logout-401')
+      fetcher.mockResolvedValueOnce(json({ csrfToken: 'logout' }));
+    if (scenario === 'revalidation-401')
+      fetcher.mockResolvedValueOnce(json({}, 403));
+    fetcher
+      .mockResolvedValueOnce(denied)
+      .mockResolvedValueOnce(json({ csrfToken: 'new-login' }))
+      .mockResolvedValueOnce(
+        json({ user: { ...user, id: 'different' }, csrfToken: 'new-session' }),
+      );
+    const old = (
+      scenario === 'logout-401' ? client.logout() : client.request('/products')
+    ).catch((error: unknown) => error);
+    await started;
+    await expect(accountChange).resolves.toBeUndefined();
+    await old;
+    expect(client.getSnapshot().user?.id).toBe('different');
+  },
+);

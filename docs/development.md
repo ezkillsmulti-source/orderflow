@@ -628,7 +628,9 @@ runner output. No credentials or tokens belong in browser storage or logs.
 Authentication uses relative /api requests and browser-managed HttpOnly cookies.
 CSRF is memory-only, acquired before login and replaced using login's csrfToken.
 Identity is restored through /auth/me. A generation boundary cancels old requests
-and rejects stale responses after logout/account changes. A failed logout retains
+and rejects stale responses after logout/account changes. The generation check also
+covers already-decoded 401/403 errors before their rejection handlers can invalidate
+or revalidate a newer session. A failed logout retains
 identity and reports an uncertain outcome; 503 does not imply unauthenticated.
 403 triggers identity revalidation and invalidates the cached CSRF token, without
 assuming token expiration or replaying a mutation. No mutation retries are automatic.
@@ -743,3 +745,13 @@ confirmed zero remaining generated test databases. The temporary PostgreSQL serv
 was stopped after verification. No application database, existing .env file, previous
 migration, or backend production source was changed. The workflow includes browser
 checks, but hosted CI was not run because this branch was not pushed.
+
+### Frontend review: settled session errors — 2026-10-19
+
+Review reproduced a narrow race where a previously decoded 401/403 reached its
+rejection handler after a different login began. The old handler could invalidate
+or revalidate the new session. Public request/logout and identity-revalidation error
+handlers now check their captured generation before touching session state. Four
+microtask-synchronized regression cases failed before the fix and pass afterward.
+The 41 web unit/proxy tests, root lint, web typecheck, and web build passed. The
+unchanged backend suite was not repeated for this client-only fix.
