@@ -10,7 +10,7 @@ remain planned; no first-release business behavior is implemented. The
 Implemented: a pinned pnpm workspace, NestJS API with validated environment
 configuration, liveness and bounded PostgreSQL readiness checks, graceful shutdown,
 Prisma schema and initial constrained Product migration, local PostgreSQL Compose,
-unit/HTTP and isolated real-database integration tests. The CI workflow is pending.
+unit/HTTP and isolated real-database integration tests, and a CI workflow.
 
 The [development guide](development.md) defines setup and checks and includes a
 dated local verification record with remaining environment limitations.

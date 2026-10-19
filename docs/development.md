@@ -90,8 +90,8 @@ because the suite has database creation/deletion privileges. A killed test proce
 may leave a random test database; inspect its name before removing it manually.
 Missing test configuration fails rather than silently skipping integration tests.
 
-The planned CI workflow will use a fresh PostgreSQL service and the same commands,
-with read-only repository permissions. A local pass does not establish that GitHub Actions passed.
+CI uses a fresh PostgreSQL service and the same commands, with read-only repository
+permissions. A local pass does not establish that GitHub Actions passed.
 
 ## Troubleshooting
 

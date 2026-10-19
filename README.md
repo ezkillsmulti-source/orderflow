@@ -3,8 +3,7 @@
 OrderFlow is a planned application for small businesses to manage products,
 inventory, and orders. The backend foundation is implemented: a NestJS API,
 PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
-and reproducible local checks. The GitHub Actions workflow, business features,
-and frontend are pending.
+and a GitHub Actions workflow. Business features and the frontend are planned.
 
 ## Local setup
 
@@ -48,8 +47,8 @@ pnpm build
 Integration checks require TEST_DATABASE_ADMIN_URL from `.env` and create/drop a
 random database on the dedicated local PostgreSQL server. They never use the
 application database. See [development](docs/development.md) for isolation,
-migrations, shutdown, and troubleshooting. The planned CI workflow will run these checks on pull requests and pushes to
-`main`; hosted execution is pending.
+migrations, shutdown, and troubleshooting. CI runs these checks on pull requests
+and pushes to `main`; adding the workflow does not imply a hosted run has passed.
 
 ## Scope and documents
 
