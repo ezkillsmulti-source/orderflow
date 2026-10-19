@@ -9,7 +9,7 @@ Run all documented pnpm commands from the repository root.
 
 Install with `pnpm install --frozen-lockfile`. Dependency versions and transitive
 resolution are committed; update dependencies deliberately and review the lockfile.
-The API is the only workspace package. TypeScript uses strict checking and native
+The workspace contains the API and React frontend. TypeScript uses strict checking and native
 ES modules. ESLint checks code; Prettier checks code and documentation.
 
 ## Environment and local PostgreSQL
@@ -688,7 +688,8 @@ without optimistic locking. Pagination is not a consistent snapshot.
 
 Use the keyboard-accessible archive dialog to confirm or cancel. Initial focus is
 on Keep product active; Escape cancels and returns focus. Busy confirmation cannot
-be dismissed. Navigation moves focus to the destination heading; Skip to content
+be dismissed. Navigation moves focus to the destination heading, including the archived-edit
+notice after its asynchronous product read. Skip to content
 focuses the main landmark without changing the catalog route. Narrow tables scroll
 horizontally with a visible hint. Accessibility has not been audited for full compliance.
 
@@ -755,3 +756,14 @@ handlers now check their captured generation before touching session state. Four
 microtask-synchronized regression cases failed before the fix and pass afterward.
 The 41 web unit/proxy tests, root lint, web typecheck, and web build passed. The
 unchanged backend suite was not repeated for this client-only fix.
+
+### Frontend review: archived edit focus — 2026-10-19
+
+Opening an archived product's edit URL displayed a notice after its asynchronous
+read but left keyboard focus on the document. The notice heading is now focusable
+and receives focus when the archived state arrives. The strengthened browser
+assertion failed on desktop/mobile before the fix. Six focused real-API Chromium
+checks now pass across both viewports, covering the administrator workflow and
+session restoration/logout failures. Root lint, web typecheck, and web build also
+passed. Workspace and catalog documentation no longer describe implemented web
+screens/browser tests as pending. The complete local backend suite was not repeated.

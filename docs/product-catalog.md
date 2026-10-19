@@ -1,8 +1,9 @@
 # Backend product catalog
 
-Creation, listing, detail reads, editing, and archiving are implemented. Inventory,
-orders, frontend, and browser tests remain pending. The catalog does not expose or
-persist stock.
+Creation, listing, detail reads, editing, and archiving are implemented. Inventory
+and orders remain pending. Authentication/catalog React screens and real-API
+browser tests are implemented; see the [web walkthrough](development.md#manual-web-walkthrough).
+The catalog does not expose or persist stock.
 
 ## Authentication and permissions
 

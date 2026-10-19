@@ -14,6 +14,10 @@ import { useProduct } from './use-product';
 export function EditProduct({ id }: { id: string }) {
   const [revision, setRevision] = useState(0);
   const state = useProduct(id, revision);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [state.data?.active]);
   if (state.error)
     return (
       <section className="card stack">
@@ -28,7 +32,9 @@ export function EditProduct({ id }: { id: string }) {
   if (!state.data.active)
     return (
       <section className="card">
-        <h1>Product archived</h1>
+        <h1 ref={heading} tabIndex={-1}>
+          Product archived
+        </h1>
         <p>This product can be read, but it cannot be edited or reactivated.</p>
         <a href={`#products/${id}`}>View product</a>
       </section>

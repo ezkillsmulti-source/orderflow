@@ -80,7 +80,7 @@ test('administrator creates, edits changed fields and archives with keyboard con
   await page.goto(`/#products/${saved.id}/edit`);
   await expect(
     page.getByRole('heading', { name: 'Product archived', exact: true }),
-  ).toBeVisible();
+  ).toBeFocused();
 });
 
 test('keeps input on SKU conflicts and rejected origin/CSRF without automatically replaying writes', async ({
