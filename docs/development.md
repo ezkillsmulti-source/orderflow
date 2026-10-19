@@ -75,6 +75,17 @@ Clean up the isolated project even if a verification step fails.
 
 ## Migrations
 
+API startup now also requires SESSION_SECRET (64 random hex characters) and
+AUTH_TRUSTED_ORIGINS (comma-separated exact origins). Generate the secret locally
+with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+Set `AUTH_TRUSTED_ORIGINS=http://127.0.0.1:3000` for local HTTP. Use the same secret
+and database on every API instance. Never commit the generated secret or overwrite
+your existing `.env`. Provisioning and migration commands do not require these API
+settings. Production additionally requires HTTPS origins and AUTH_TRUST_PROXY with
+explicit proxy IPs/CIDRs; wildcard/hop-count/unrestricted trust is rejected.
+The API currently listens on loopback; deploy behind an explicitly trusted local
+TLS proxy and prevent access that bypasses it. See [ADR 0004](decisions/0004-session-authentication.md).
+
 After installation, run `pnpm db:generate`, then `pnpm db:migrate`. The latter runs
 `prisma migrate deploy` and applies committed SQL migrations; it is safe to repeat.
 Generation is also included in build, typecheck, and test scripts and does not
@@ -257,3 +268,13 @@ contained no generated passwords or stored hashes. No local `.env` was changed.
 All generated test databases, project containers, network, volume, and temporary
 configuration were removed. These are local results; this branch has not been
 pushed and no hosted check is claimed for it.
+
+## Session infrastructure verification
+
+On 2026-10-19, using pinned Node/pnpm and an isolated PostgreSQL 17.6 Compose
+project, frozen installation, Prisma validation, formatting, lint, typecheck,
+68 unit/HTTP tests, 34 integration tests, and build passed. Tests exercised shared
+session persistence, server expiry, missing-store failure, cookie attributes,
+bounded cleanup, and renewal that cannot recreate a deleted session. Test databases
+and the project's containers, network, volume, and temporary configuration were
+removed. Authentication endpoints are added in the subsequent task commit.

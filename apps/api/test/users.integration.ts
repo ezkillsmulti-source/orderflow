@@ -94,6 +94,7 @@ describe('user persistence', () => {
       ).toEqual([
         { migration_name: '20261019000000_initial_product' },
         { migration_name: '20261019010000_user_accounts' },
+        { migration_name: '20261019020000_http_sessions' },
       ]);
     } finally {
       await upgrade.close();

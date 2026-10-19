@@ -9,6 +9,8 @@ import { Client } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { ENVIRONMENT } from '../src/config/config.module.js';
+import { AUTH_CONFIGURATION } from '../src/auth/auth.configuration.js';
+import { testAuthConfiguration } from './support/auth-configuration.js';
 import { DatabaseService } from '../src/database/database.service.js';
 
 const name = `orderflow_test_${randomUUID().replaceAll('-', '')}`;
@@ -51,6 +53,8 @@ beforeAll(async () => {
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENVIRONMENT)
     .useValue({ databaseUrl, port: 3000 })
+    .overrideProvider(AUTH_CONFIGURATION)
+    .useValue(testAuthConfiguration)
     .compile();
   app = module.createNestApplication();
   await app.init();
@@ -78,7 +82,7 @@ describe('real PostgreSQL foundation', () => {
     const migrations = await database.client.$queryRaw<
       { count: bigint }[]
     >`SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`;
-    expect(migrations[0]?.count).toBe(2n);
+    expect(migrations[0]?.count).toBe(3n);
   });
 
   it('persists exact monetary boundaries, defaults, uniqueness, and updates', async () => {
@@ -148,6 +152,8 @@ describe('real PostgreSQL foundation', () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ENVIRONMENT)
       .useValue({ databaseUrl: databaseUrl, port: 3000 })
+      .overrideProvider(AUTH_CONFIGURATION)
+      .useValue(testAuthConfiguration)
       .compile();
     const closingApp = module.createNestApplication();
     try {
@@ -192,6 +198,8 @@ describe('real PostgreSQL foundation', () => {
           databaseUrl: `postgresql://test:placeholder@127.0.0.1:${address.port}/test`,
           port: 3000,
         })
+        .overrideProvider(AUTH_CONFIGURATION)
+        .useValue(testAuthConfiguration)
         .compile();
       failedApp = module.createNestApplication();
       await failedApp.init();

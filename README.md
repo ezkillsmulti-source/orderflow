@@ -16,7 +16,7 @@ pinned toolchain and configuration details. From the repository root:
 
 ```bash
 test -e .env || cp .env.example .env
-# Replace the local password consistently in .env before starting PostgreSQL.
+# Replace the local database password and generate SESSION_SECRET as documented.
 pnpm install --frozen-lockfile
 docker compose up -d --wait postgres
 pnpm db:generate

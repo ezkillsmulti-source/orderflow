@@ -32,3 +32,12 @@ model Product {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 }
+
+model HttpSession {
+  sid    String   @id @db.VarChar(255)
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamptz(6)
+
+  @@index([expire])
+  @@map("http_session")
+}

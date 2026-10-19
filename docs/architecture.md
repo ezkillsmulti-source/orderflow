@@ -13,6 +13,9 @@ repository layer or shared workspace package.
   pool is lazy: an unavailable database does not prevent liveness from starting.
   Nest shutdown hooks disconnect the client and release the adapter's pool.
 - `HealthModule` exposes the only two HTTP routes.
+- `SessionModule` installs express-session with a PostgreSQL store for non-health
+  routes. It manages bounded expired-session cleanup and closes its separate,
+  bounded pool on shutdown. Configuration and lifetimes are in [ADR 0004](decisions/0004-session-authentication.md).
 
 `GET /health/live` returns HTTP 200 and `{"status":"ok"}` without accessing the
 pool. `GET /health/ready` runs `SELECT 1` through Prisma and returns the same success
