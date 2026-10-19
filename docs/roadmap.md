@@ -48,16 +48,20 @@ Scope change: improve the existing authenticated product workspace before adding
 inventory. Inventory and every subsequent milestone move forward by one number;
 their business rules and acceptance criteria are retained unchanged.
 
-Deliver a cohesive warm, light interface with restrained burgundy accents, shared
-design tokens, clear navigation, catalog hierarchy, read-only operator workflows,
-and accessible product details, forms, and archive confirmation. Use existing API
-data and contracts; no inventory, orders, new backend behavior, or placeholder metrics.
+Implemented: a cohesive warm, light interface with restrained burgundy accents,
+shared design tokens, working navigation, catalog hierarchy, read-only operator
+workflows, grouped forms, product details, and archive confirmation. It uses existing
+API data and contracts; no inventory, orders, new backend behavior, or placeholder metrics.
 
 Completion: ADMIN and OPERATOR workflows pass against the real API and an isolated
 PostgreSQL database. Login, list, detail, create/edit, and archive confirmation are
 reviewed on desktop and narrow mobile screens. Keyboard/focus, errors, long content,
 exact maximum prices, page reflow, and actual text/non-text contrast are checked.
-Automated checks do not establish full accessibility compliance. See [UI design](ui-design.md).
+Verification passed locally: 43 web tests, 30 real-API browser checks, formatting,
+lint, typecheck, and both builds. Rendered screens were inspected at 1280x900 and
+390x844, with additional 320px long-content/reflow and contrast checks. Automated
+checks do not establish full accessibility compliance. See [UI design](ui-design.md)
+and the [verification record](development.md#product-workspace-redesign-verification--2026-10-19).
 
 ## 4. Accountable inventory
 

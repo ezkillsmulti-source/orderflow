@@ -28,10 +28,29 @@ unavailable, forbidden, missing, and invalid-link states have distinct headings.
 
 Query-only navigation retains focus on filters/page controls; changing screen paths
 moves focus to the destination heading. Native radio arrow keys remain usable.
-Details and grouped forms are refined in the remaining increment. Detail and form pages retain hash routes
-and browser history rather than introducing drawers or nested dialogs. Full pages
-leave room for long product names, maximum prices, and validation feedback on mobile.
+Detail and form pages retain hash routes and browser history rather than introducing
+drawers or nested dialogs. Full pages leave room for long product names, maximum prices, and validation feedback on mobile.
 Only archival uses a native modal confirmation.
+
+Details put the product name and permitted actions above a text status/context row,
+then group SKU/description and the exact ARS price in separate panels. OPERATOR and
+archived records explicitly explain read-only availability. Names, SKUs, and descriptions
+wrap without truncating the record. On mobile the price panel comes before lengthy
+record information so the price remains discoverable even with a full description.
+Create/edit use labeled Product identity and Pricing fieldsets, descriptive help, and a consistent Cancel/primary-save footer. Required
+fields have native required semantics; validation announces a summary, associates
+individual errors with inputs, and focuses the first invalid field in visual order.
+Recoverable API errors preserve entered values; unchanged edits cannot be submitted.
+Concurrency policy belongs in the API documentation, not normal form copy.
+
+Archive confirmation names the product, explains permanent read-only availability,
+and initially focuses Keep product active. Escape and cancellation restore the opener;
+keyboard focus remains inside the native modal with explicit Tab/Shift+Tab wrapping
+between its action buttons (including Chromium’s browser-chrome edge case).
+If the archive response is lost,
+Keep product active becomes Check product status: that deliberate action closes the
+modal and performs a read, never replays the write or claims the product stayed active.
+Busy confirmation cannot be dismissed. Successful archival reloads the server record.
 
 ## Tokens and current primitives
 
@@ -53,7 +72,9 @@ All shared tokens are CSS custom properties in `apps/web/src/styles.css`.
 | Focus     | 3px solid brand outline with a 3px offset                                          |
 
 Shared classes cover buttons/links, labeled fields, help/errors, status badges,
-panels, and layout. Extract React components only when current screens share a
+panels, and layout. Small PageHeader, BackLink, WorkspaceState, and LoadingState
+components serve the existing screens; status badges and archive confirmation remain
+focused catalog components. Extract React components only when current screens share a
 concrete responsibility. Keep the existing session store, hooks, and hash navigation;
 no component library, router, or state dependency is required.
 
@@ -61,7 +82,8 @@ no component library, router, or state dependency is required.
 
 Use semantic header/navigation/main landmarks and a skip link that focuses main
 without altering the hash route. Navigation and status are labeled in text rather
-than relying on color. Controls have visible focus and at least 44px height.
+than relying on color. Controls have visible focus; buttons and form inputs have
+at least 44px height.
 Required input boundaries and focus indicators target 3:1 against adjacent surfaces;
 normal text targets 4.5:1, including muted and status text. Disabled controls retain
 readable text even though inactive controls are exempt from non-text contrast.
@@ -75,7 +97,9 @@ the design has no essential animation or sticky overlays.
 References: W3C [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html),
 [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html),
 [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html), and
-[modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
+[modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/), and
+the [HTML dialog specification](https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element).
+The dialog itself has no tabindex; focus targets its action buttons.
 
 ## Verification and limitations
 
@@ -86,8 +110,33 @@ at 1280x900 and 390x844. Concrete issues were left-aligned prices, absent applic
 navigation, an empty state without an administrator creation path, and ungrouped form
 content with technical concurrency copy.
 
-Token contrast checks run in the web unit suite; rendered-screen contrast, keyboard,
-long-content, and narrow reflow checks will accompany the workspace increments.
+Final checks passed: 43 web tests, 30 real-API Chromium browser checks, root
+formatting/lint/typecheck, and API/web builds. Rendered login, catalog, detail,
+create/edit, and confirmation were inspected at desktop and narrow mobile sizes.
+Token contrast checks run in the web unit suite. Browser checks measure computed
+foreground/background combinations, control borders, and visible focus outlines;
+they exercise keyboard filters, error associations, modal focus/restoration, long
+content, maximum money, and page reflow down to 320px.
+The token suite checks 18 text combinations and 12 control/focus combinations,
+using unrounded relative luminance. Representative measured combinations:
+
+| Foreground / background           | Contrast |
+| --------------------------------- | -------- |
+| Primary text / canvas             | 13.04:1  |
+| Muted text / surface              | 6.02:1   |
+| Muted text / soft (disabled text) | 5.30:1   |
+| Brand text/focus / surface        | 8.86:1   |
+| On-brand text / hover brand       | 10.75:1  |
+| Control border / surface          | 3.99:1   |
+| Control border / rose             | 3.38:1   |
+| Success / success surface         | 6.83:1   |
+| Warning / warning surface         | 6.02:1   |
+| Error / error surface             | 6.59:1   |
+
+Browser assertions additionally check actual computed styles on login controls,
+normal/hover primary actions, alerts, filter selection/focus, catalog text, form
+labels/help/errors, input boundaries/focus, the table scroll region, and archive
+warning/actions. Decorative separators do not identify required controls.
 Private synthetic captures stay outside Git and are never CI artifacts. This work
 does not claim full accessibility compliance, screen-reader certification, support
 for every browser/device, or production hosting.

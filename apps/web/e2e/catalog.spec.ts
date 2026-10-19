@@ -44,6 +44,9 @@ test('operators browse active and archived products with exact prices and bounde
   ).toBeChecked();
   await page.goto('/#products/00000000-0000-0000-0000-000000000000');
   await expect(page.getByRole('alert')).toContainText('could not be found');
+  await expect(
+    page.getByRole('heading', { name: 'Product not found', level: 1 }),
+  ).toBeFocused();
 });
 
 test('distinguishes empty, unavailable and forbidden reads and handles session invalidation', async ({
@@ -61,12 +64,18 @@ test('distinguishes empty, unavailable and forbidden reads and handles session i
   await expect(page.getByRole('alert')).toContainText(
     'temporarily unavailable',
   );
+  await expect(
+    page.getByRole('heading', { name: 'Products unavailable' }),
+  ).toBeVisible();
   await page.unroute('**/api/products?*');
   await page.route('**/api/products?*', (route) =>
     route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }),
   );
   await page.getByRole('button', { name: 'Refresh products' }).click();
   await expect(page.getByRole('alert')).toContainText('forbidden');
+  await expect(
+    page.getByRole('heading', { name: 'Access restricted' }),
+  ).toBeVisible();
   await page.unroute('**/api/products?*');
   await database.query('UPDATE "User" SET active=false WHERE email=$1', [
     process.env.DEV_ADMIN_EMAIL,

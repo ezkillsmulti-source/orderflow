@@ -99,7 +99,11 @@ local /api proxy preserves Origin and cookie attributes; the API continues to en
 authentication, roles, CSRF, and trusted origins. SessionClient owns memory-only CSRF and session identity. Epochs and AbortController
 prevent stale requests from restoring old account data. React subscribes through
 useSyncExternalStore; no global state framework or token persistence is used.
-Login/logout, catalog listing/detail reads, and administrator catalog forms are implemented. Hash navigation
+Login/logout, catalog listing/detail reads, and administrator catalog forms are implemented.
+The [workspace design](ui-design.md) uses CSS tokens and small shared presentation
+components, keeping full-page detail/forms and one native archive dialog. Query-only
+navigation retains control focus; page navigation focuses the destination heading.
+Hash navigation
 keeps browser history without an extra router dependency. Read effects ignore
 results after unmount; session boundaries additionally reject stale requests.
 Monetary JSON strings are validated and formatted with bigint quotient/remainder,

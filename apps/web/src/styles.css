@@ -268,6 +268,7 @@ p {
 }
 .field {
   display: grid;
+  align-content: start;
   gap: var(--space-2);
   min-width: 0;
 }
@@ -415,16 +416,6 @@ textarea {
   border-top: var(--border-fine);
   padding-top: var(--space-5);
 }
-.toolbar {
-  display: flex;
-  align-items: end;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  margin: var(--space-8) 0 var(--space-4);
-}
-.toolbar .field {
-  min-width: 160px;
-}
 .table-scroll {
   overflow-x: auto;
   background: var(--color-surface);
@@ -474,15 +465,12 @@ td.price {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-6);
-  margin-top: var(--space-8);
+  margin-top: var(--space-6);
+  align-items: start;
 }
 .description {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.form-card {
-  max-width: 760px;
-  margin-top: var(--space-6);
 }
 .form-grid {
   display: grid;
@@ -511,10 +499,6 @@ dialog {
 }
 dialog::backdrop {
   background: rgb(48 42 44 / 48%);
-}
-.empty {
-  padding: var(--space-12) var(--space-6);
-  text-align: center;
 }
 .sr-only {
   position: absolute;
@@ -586,18 +570,11 @@ dialog::backdrop {
   .full {
     grid-column: auto;
   }
-  .toolbar .field {
-    flex: 1;
-  }
   .mobile-hint {
     display: block;
   }
   .pagination {
     align-items: flex-start;
-  }
-  .row.mobile-stack {
-    flex-direction: column;
-    align-items: stretch;
   }
   dialog {
     padding: var(--space-5);
@@ -866,4 +843,112 @@ th.row-actions {
 }
 .row.row-actions {
   flex-wrap: nowrap;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-5);
+}
+.detail-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+.detail-context .help {
+  flex: 1;
+  min-width: 200px;
+}
+.product-facts {
+  margin: var(--space-6) 0;
+  padding-bottom: var(--space-6);
+  border-bottom: var(--border-fine);
+}
+.product-facts dt {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  margin-bottom: var(--space-2);
+}
+.product-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.product-facts code {
+  font-size: var(--text-sm);
+}
+.description:last-child {
+  margin-bottom: 0;
+}
+.detail-price {
+  font-size: clamp(1.125rem, 2vw, 1.5rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  text-align: right;
+  margin-block: var(--space-6) var(--space-3);
+}
+.price-card .help {
+  text-align: right;
+}
+.product-form {
+  max-width: 900px;
+}
+.form-section {
+  margin: 0;
+  min-width: 0;
+}
+.form-section legend {
+  float: left;
+  padding: 0;
+  font-size: var(--text-lg);
+  font-weight: 650;
+  margin-bottom: var(--space-6);
+}
+.form-section-body {
+  clear: both;
+}
+.pricing-fields {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 440px;
+}
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  border-top: var(--border-fine);
+  padding-top: var(--space-6);
+}
+.warning {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border-left: 3px solid var(--color-warning);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+.archive-product {
+  font-weight: 600;
+  margin-block: var(--space-5);
+}
+dialog .actions {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+@media (max-width: 700px) {
+  .product-form .form-actions > * {
+    flex: 1;
+  }
+  .price-card {
+    order: -1;
+  }
+  dialog .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

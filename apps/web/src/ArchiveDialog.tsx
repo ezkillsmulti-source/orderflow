@@ -9,7 +9,7 @@ export function ArchiveDialog({
   archived,
 }: {
   data: Product;
-  close: () => void;
+  close: (refresh?: boolean) => void;
   archived: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -53,22 +53,48 @@ export function ArchiveDialog({
   return (
     <dialog
       ref={dialog}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        // Keep focus on the action buttons before browser chrome enters the tab order.
+        const buttons = dialog.current?.querySelectorAll<HTMLButtonElement>(
+          'button:not(:disabled)',
+        );
+        const first = buttons?.[0];
+        const last = buttons?.[buttons.length - 1];
+        if (!first || !last) {
+          event.preventDefault();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
       aria-labelledby="archive-title"
-      aria-describedby="archive-description"
+      aria-describedby="archive-product archive-description"
       onCancel={(event) => {
         event.preventDefault();
-        if (!busy) close();
+        if (!busy) close(Boolean(error?.uncertain));
       }}
     >
-      <h2 id="archive-title">Archive {data.name}?</h2>
-      <p id="archive-description">
+      <p className="eyebrow">Catalog action</p>
+      <h2 id="archive-title">Archive product?</h2>
+      <p className="archive-product" id="archive-product">
+        {data.name}
+      </p>
+      <p className="warning" id="archive-description">
         The product will remain available to read. It cannot be edited or
         reactivated after archival.
       </p>
       <ErrorNotice error={error} />
       <div className="row actions">
-        <button ref={cancel} onClick={close} disabled={busy}>
-          Keep product active
+        <button
+          ref={cancel}
+          onClick={() => close(Boolean(error?.uncertain))}
+          disabled={busy}
+        >
+          {error?.uncertain ? 'Check product status' : 'Keep product active'}
         </button>
         <button
           className="danger"

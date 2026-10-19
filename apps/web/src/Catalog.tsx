@@ -12,7 +12,12 @@ import { ArchiveDialog } from './ArchiveDialog';
 import { EditProduct, ProductForm } from './ProductForm';
 import { useProduct } from './use-product';
 import { formatPrice } from './money';
-import { LoadingState, PageHeader, WorkspaceState } from './workspace';
+import {
+  BackLink,
+  LoadingState,
+  PageHeader,
+  WorkspaceState,
+} from './workspace';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#products');
@@ -34,7 +39,15 @@ export function Status({ active }: { active: boolean }) {
     </span>
   );
 }
-function ReadError({ error, retry }: { error: ApiError; retry: () => void }) {
+function ReadError({
+  error,
+  retry,
+  inline = false,
+}: {
+  error: ApiError;
+  retry: () => void;
+  inline?: boolean;
+}) {
   const blocked = useCooldown(error);
   const title =
     error.status === 404
@@ -49,6 +62,7 @@ function ReadError({ error, retry }: { error: ApiError; retry: () => void }) {
   return (
     <WorkspaceState
       title={title}
+      headingLevel={inline ? 2 : 1}
       actions={
         <>
           {error.status !== 404 && (
@@ -89,40 +103,56 @@ function ProductDetail({
         retry={() => setRevision((value) => value + 1)}
       />
     );
-  if (!state.data) return <p role="status">Loading product…</p>;
+  if (!state.data) return <LoadingState>Loading product…</LoadingState>;
   const data = state.data;
   return (
     <>
-      <a href={back}>← Back to products</a>
-      <div className="row between" style={{ marginTop: '1.5rem' }}>
-        <div>
-          <p className="eyebrow">Product details</p>
-          <h1 ref={heading} tabIndex={-1}>
-            {data.name}
-          </h1>
-          <p className="muted">SKU {data.sku}</p>
-        </div>
+      <BackLink href={back}>Back to products</BackLink>
+      <PageHeader
+        title={data.name}
+        eyebrow="Product details"
+        headingRef={heading}
+        actions={
+          admin && data.active ? (
+            <>
+              <a className="button primary" href={`#products/${data.id}/edit`}>
+                Edit product
+              </a>
+              <button className="danger" onClick={() => setArchive(true)}>
+                Archive product
+              </button>
+            </>
+          ) : undefined
+        }
+      />
+      <div className="detail-context">
         <Status active={data.active} />
+        {!data.active ? (
+          <p className="help">
+            Archived · Available to read. Editing and reactivation are
+            unavailable.
+          </p>
+        ) : !admin ? (
+          <p className="help">
+            Read-only access · Your team’s administrators manage product
+            details.
+          </p>
+        ) : (
+          <p className="help">Available in the active catalog.</p>
+        )}
       </div>
       {notice && (
         <p className="notice" role="status">
           {notice}
         </p>
       )}
-      {admin && data.active && (
-        <div className="row">
-          <a className="button primary" href={`#products/${data.id}/edit`}>
-            Edit product
-          </a>
-          <button className="danger" onClick={() => setArchive(true)}>
-            Archive product
-          </button>
-        </div>
-      )}
       {archive && admin && data.active && (
         <ArchiveDialog
           data={data}
-          close={() => setArchive(false)}
+          close={(refresh = false) => {
+            setArchive(false);
+            if (refresh) setRevision((value) => value + 1);
+          }}
           archived={() => {
             setArchive(false);
             setNotice('Product archived.');
@@ -131,15 +161,24 @@ function ProductDetail({
         />
       )}
       <div className="detail-grid">
-        <section className="card">
-          <h2>Description</h2>
+        <section className="card" aria-labelledby="identity-title">
+          <h2 id="identity-title">Product information</h2>
+          <dl className="product-facts">
+            <div>
+              <dt>SKU</dt>
+              <dd>
+                <code>{data.sku}</code>
+              </dd>
+            </div>
+          </dl>
+          <h3>Description</h3>
           <p className="description">
             {data.description ?? 'No description provided.'}
           </p>
         </section>
-        <section className="card">
-          <h2>Price</h2>
-          <p className="price">{formatPrice(data.priceMinor)}</p>
+        <section className="card price-card" aria-labelledby="price-title">
+          <h2 id="price-title">Price</h2>
+          <p className="detail-price">{formatPrice(data.priceMinor)}</p>
           <p className="help">ARS · Argentine pesos</p>
         </section>
       </div>
@@ -275,6 +314,7 @@ function ProductList({
         </div>
         {state.error ? (
           <ReadError
+            inline
             error={state.error}
             retry={() => setRevision((value) => value + 1)}
           />

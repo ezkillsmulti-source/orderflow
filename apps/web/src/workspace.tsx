@@ -1,4 +1,4 @@
-import { useId, type ReactNode, type Ref } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
 
 export function PageHeader({
   title,
@@ -30,15 +30,28 @@ export function WorkspaceState({
   title,
   children,
   actions,
+  headingLevel = 2,
 }: {
   title: string;
   children: ReactNode;
   actions?: ReactNode;
+  headingLevel?: 1 | 2;
 }) {
   const id = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const Heading = headingLevel === 1 ? 'h1' : 'h2';
+  useEffect(() => {
+    if (headingLevel === 1) heading.current?.focus();
+  }, [headingLevel, title]);
   return (
     <section className="workspace-state" aria-labelledby={id}>
-      <h2 id={id}>{title}</h2>
+      <Heading
+        id={id}
+        ref={heading}
+        tabIndex={headingLevel === 1 ? -1 : undefined}
+      >
+        {title}
+      </Heading>
       <div className="state-description">{children}</div>
       {actions && <div className="row state-actions">{actions}</div>}
     </section>
@@ -50,5 +63,20 @@ export function LoadingState({ children }: { children: ReactNode }) {
       <span className="loading-indicator" aria-hidden="true" />
       {children}
     </div>
+  );
+}
+
+export function BackLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <a className="back-link" href={href}>
+      <span aria-hidden="true">←</span>
+      {children}
+    </a>
   );
 }

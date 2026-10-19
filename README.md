@@ -11,8 +11,9 @@ creation, listing, detail reads, editing, and archiving with current-role author
 The React/Vite application in `apps/web` implements login, identity restoration,
 logout, product browsing/detail reads, and administrator creation, editing, and
 archival. Both roles can read archived products. Inventory and orders remain planned.
-Milestone 3 refines the existing product workspace with a warm burgundy design;
-inventory and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
+Milestone 3 implements a warm burgundy product workspace with clear filters,
+role-aware actions, grouped forms, and responsive keyboard-accessible browsing.
+Inventory and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
 See the [frontend startup instructions](docs/development.md#react-frontend).
 
 ## Local setup
