@@ -1,0 +1,97 @@
+# Roadmap
+
+All milestones are planned. Implementation has not started. Each milestone builds
+on the previous result and must include relevant documentation and verification.
+The [product scope](product-scope.md) is the source of business rules and open
+decisions; resolve decisions needed by a milestone before implementing it.
+
+## 1. Runnable foundation
+
+Deliver a minimal NestJS backend, React/Vite frontend, and PostgreSQL/Prisma
+connection within a modular monolith.
+
+Completion: a documented local workflow starts the application, a browser can
+reach a backend health response, an initial migration applies to a fresh database,
+and GitHub Actions runs the actual checks introduced by this milestone. Redis and
+a worker are not needed yet.
+
+## 2. Authenticated product catalog
+
+Deliver development-seeded accounts, server-side sessions with an HttpOnly cookie,
+CSRF protection, backend authorization, and product creation, editing, archiving,
+and listing. Choose the session store here. Use ARS integer minor units with the
+documented numeric bounds and exact arithmetic; new products start with zero stock.
+
+Completion: provisioned users can demonstrate their permitted catalog actions;
+backend tests cover session rotation, logout invalidation, CSRF rejection,
+production cookie requirements, role denials, unique SKUs, archiving, numeric
+bounds, and price validation. Lists use bounded, deterministic pagination. A
+browser test demonstrates the authenticated catalog workflow.
+
+## 3. Accountable inventory
+
+Deliver available-stock visibility and administrator adjustments using signed
+integer deltas, non-empty reasons, and authenticated actors. Select the
+adjustment-history interface and access policy.
+
+Completion: a user can demonstrate an adjustment and inspect its recorded reason
+and actor through the agreed interface. Backend tests verify authorization,
+attribution, atomic records and stock changes, numeric bounds, and rejection of
+changes that would reduce on-hand stock below reserved stock.
+
+## 4. Orders and reservations — first-release behavior
+
+Deliver orders with distinct active products, immutable item snapshots and totals,
+atomic stock reservation, and the `RESERVED`/`CANCELLED` lifecycle. Implement
+per-user creation idempotency, idempotent cancellation, ownership-filtered order
+listing with bounded pagination, and order details. Administrators manage all
+orders; operators view and cancel only their own.
+
+Completion: all first-release acceptance criteria pass in the agreed test suite.
+Database-backed tests exercise competing reservations, concurrent and repeated
+cancellations, competing adjustments, duplicate creation retries, changed-content
+conflicts, numeric overflow, and rollback on insufficient stock. Tests verify
+operator ownership restrictions and pagination metadata. Browser tests demonstrate
+the order creation and cancellation flow. Documentation explains the initial
+lifecycle and its limitations; no exactly-once event delivery is promised.
+
+## 5. Operable first release
+
+Package the first-release behavior using Docker Compose and Nginx, and document
+configuration, production session/cookie and proxy settings, migrations, logs,
+health checks, backup/restore, and recovery. Resolve production account provisioning.
+
+Completion: the documented deployment procedure works in a chosen demonstration
+environment; smoke checks pass, a backup is restored successfully, and operational
+limitations and actual verification evidence are recorded. Publish a deployment
+URL only if a deployment exists. CI runs the relevant automated checks.
+
+## 6. Reservation expiration and background processing
+
+Agree an expiration policy, then introduce Redis, BullMQ, and a worker for the
+concrete expiration workflow while retaining the modular monolith.
+
+Completion: eligible orders expire according to policy; retries, duplicate delivery,
+and races with cancellation have idempotent reservation-release effects. Tests
+demonstrate this behavior, and worker failure/recovery procedures are documented
+and exercised. Expiration states and policy remain unresolved until this milestone.
+
+## 7. Payment integration
+
+Choose a provider and define payment states and their relationship to reservation,
+expiration, cancellation, and fulfillment before adding an integration.
+
+Completion: a provider sandbox flow demonstrates the agreed payment lifecycle;
+tests verify webhook authenticity, idempotent effects under duplicate delivery,
+and relevant payment/order races. Provider selection, payment states, and their
+business effects remain unresolved. No live-money capability is implied by a
+sandbox demo.
+
+## 8. Multi-tenant isolation
+
+Define tenant ownership, membership, and access rules, then implement isolation.
+These boundaries remain unresolved until this milestone.
+
+Completion: separate tenants can demonstrate independent workflows, cross-tenant
+access tests fail safely for every tenant-owned resource, and data migration and
+operational procedures account for tenant boundaries.

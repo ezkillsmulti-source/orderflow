@@ -1,0 +1,54 @@
+# Dependencies and package-manager caches
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
+
+# Build output and tool caches
+dist/
+build/
+out/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Tests and coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Secrets and local environment configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+
+# Local database/runtime data and backups
+.data/
+docker-data/
+*.sql.gz
+*.dump
+*.pid
+*.pid.lock
+*.log
+logs/
+
+# Local editors and operating-system artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
