@@ -465,6 +465,96 @@ describe('session authentication HTTP contract with PostgreSQL', () => {
     expect(JSON.stringify(response.body)).not.toContain('private-driver-error');
     query.mockRestore();
   });
+  it('does not authenticate after a transient failure of the explicit login save', async () => {
+    const anonymous = await csrf();
+    const runtime = apps[0]!.get(SessionRuntime);
+    jest
+      .spyOn(runtime.store, 'set')
+      .mockImplementationOnce((_id, _data, done) =>
+        done?.(new Error('private-transient-store-error')),
+      );
+    const failed = await request(apps[0]!.getHttpServer())
+      .post('/auth/login')
+      .set('Origin', origin)
+      .set('Cookie', anonymous.cookie)
+      .set('x-csrf-token', anonymous.token)
+      .send({ email, password })
+      .expect(503);
+    expect(await db.client.httpSession.count()).toBe(0);
+    if (failed.headers['set-cookie'])
+      await request(apps[1]!.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', cookie(failed))
+        .expect(401);
+  });
+  it('does not recreate a revoked session through a delayed response-end save', async () => {
+    const anonymous = await csrf();
+    const runtime = apps[0]!.get(SessionRuntime);
+    const set = runtime.store.set.bind(runtime.store);
+    let saves = 0;
+    jest.spyOn(runtime.store, 'set').mockImplementation((sid, state, done) => {
+      if (++saves !== 2) return set(sid, state, done);
+      // The first save committed. Another instance now performs logout's delete
+      // before express-session's response-end save reaches PostgreSQL.
+      void apps[1]!
+        .get(SessionRuntime)
+        .operation((deleted) =>
+          apps[1]!.get(SessionRuntime).store.destroy(sid, deleted),
+        )
+        .then(
+          () => set(sid, state, done),
+          (error: unknown) => done?.(error),
+        );
+    });
+    const authenticated = await request(apps[0]!.getHttpServer())
+      .post('/auth/login')
+      .set('Origin', origin)
+      .set('Cookie', anonymous.cookie)
+      .set('x-csrf-token', anonymous.token)
+      .send({ email, password })
+      .expect(200);
+    expect(saves).toBe(2);
+    expect(await db.client.httpSession.count()).toBe(0);
+    await request(apps[1]!.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', cookie(authenticated))
+      .expect(401);
+  });
+  it('rejects a protected request whose renewal follows concurrent logout', async () => {
+    const authenticated = await login();
+    const runtime = apps[1]!.get(SessionRuntime);
+    const touch = runtime.touch.bind(runtime);
+    let markLoaded!: () => void;
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => {
+      markLoaded = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    jest.spyOn(runtime, 'touch').mockImplementationOnce(async (req) => {
+      markLoaded();
+      await released;
+      return touch(req);
+    });
+    const pending = request(apps[1]!.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', authenticated.cookie)
+      .then((response) => response);
+    try {
+      await loaded;
+      await request(apps[0]!.getHttpServer())
+        .post('/auth/logout')
+        .set('Origin', origin)
+        .set('Cookie', authenticated.cookie)
+        .set('x-csrf-token', authenticated.token)
+        .expect(204);
+    } finally {
+      release();
+    }
+    expect((await pending).status).toBe(401);
+    expect(await db.client.httpSession.count()).toBe(0);
+  });
   it('shares normalized account limits across instances and source IPs, before Argon2', async () => {
     const anonymous = await csrf(apps[2]!);
     const verify = jest.spyOn(apps[2]!.get(PasswordService), 'verify');

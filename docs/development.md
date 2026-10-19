@@ -188,7 +188,10 @@ conditional UPDATE, capped at the absolute deadline. Login creates a fresh sessi
 and token; clients must replace the old token. Current active status and role are
 read on every protected request. A failed store operation returns 503 and must not
 be treated as login failure or successful logout. Retry logout once storage
-recovers. To repeat logout after success, fetch a fresh anonymous token/cookie and
+recovers. Login persistence failures discard the request's session without issuing
+an authenticated cookie. Response-end duplicate saves reuse the first write
+result; they cannot recreate a session revoked by another instance. To repeat
+logout after success, fetch a fresh anonymous token/cookie and
 submit that pair; reusing the destroyed session's token returns 403.
 
 Shared PostgreSQL limits admit 200 non-health requests per fixed minute globally;
@@ -413,3 +416,23 @@ SIGTERM shutdown, and captured logs contained no test passwords/hashes or CSRF
 tokens. All generated databases, temporary credential/cookie/token files, and
 isolated Compose resources were removed; local `.env` was unchanged. Results are
 local, not hosted CI or browser SameSite verification.
+
+### Publication review
+
+The 2026-10-19 review reproduced two persistence failures before fixing them:
+a transient explicit login-save failure could be retried automatically at response
+end, and a delayed duplicate save could recreate a session revoked by another
+instance. Regression tests now reject both behaviors and cover an HTTP identity
+request whose renewal follows concurrent logout. The two affected PostgreSQL
+integration suites passed all 35 tests using the pinned toolchain and a disposable
+Compose server. The previous full-suite record above remains separate evidence;
+the publication review did not repeat unrelated local suites. Formatting, lint,
+and typecheck also passed after the fix.
+
+Local Gitleaks 8.30.1 (official release with verified SHA-256) found no leaks in
+reachable Git history or a snapshot of tracked files. Targeted inspection also
+checked reachable blobs for credential URLs, literal secret assignments, private
+keys, and common service-token formats. Candidates were placeholders or synthetic
+test fixtures. No repository content was uploaded and no secret values were printed.
+This does not prove the absence of every possible secret; ignored local files,
+unreachable objects, external logs/artifacts, and remote-only refs were not scanned.

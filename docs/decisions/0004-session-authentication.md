@@ -22,6 +22,16 @@ policy while preventing an in-flight read request from recreating a logged-out
 session. Automatic store touch is disabled; authenticated requests renew explicitly
 before responding. Cookie renewal is rolling and capped by the absolute deadline.
 
+Persist newly created session state once per request object. A small extension of
+the maintained PostgreSQL store reuses that object's first write result, including
+failure, when express-session attempts another save at response end after
+regeneration. A delayed duplicate therefore cannot upsert a session deleted by
+another instance. Failed explicit persistence discards the request's session and
+attempts server-side destruction before returning 503, preventing automatic retry
+or cookie issuance. Existing loaded sessions remain unchanged; activity uses the
+conditional renewal above, and login changes identity only through regeneration.
+Future session-state mutations must preserve this creation-only write policy.
+
 Delete at most 500 expired rows per minute per instance with SKIP LOCKED, an expiry
 index, query deadlines, and no overlapping ticks. Cleanup failure retries on the
 next tick. Shutdown stops the timer, awaits pending cleanup, and closes the pool.

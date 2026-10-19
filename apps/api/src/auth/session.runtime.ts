@@ -44,7 +44,37 @@ export class SessionRuntime implements OnApplicationShutdown {
       /* Requests fail closed; never log driver details. */
     });
     const PgStore = connectPgSimple(session);
-    this.store = new PgStore({
+    // Regenerated sessions can be saved again by express-session at response end.
+    // Reuse each object's first write result, including errors, so a delayed
+    // duplicate cannot upsert a row that another instance has since revoked.
+    class CreationStore extends PgStore {
+      private readonly writes = new WeakMap<
+        session.SessionData,
+        Promise<void>
+      >();
+      override set(
+        sid: string,
+        state: session.SessionData,
+        done?: (error?: unknown) => void,
+      ): void {
+        let write = this.writes.get(state);
+        if (!write) {
+          write = new Promise<void>((resolve, reject) => {
+            super.set(sid, state, (error: unknown) =>
+              error
+                ? reject(new Error('Authentication storage unavailable.'))
+                : resolve(),
+            );
+          });
+          this.writes.set(state, write);
+        }
+        void write.then(
+          () => done?.(),
+          (error: unknown) => done?.(error),
+        );
+      }
+    }
+    this.store = new CreationStore({
       pool: this.pool,
       tableName: 'http_session',
       createTableIfMissing: false,
@@ -179,7 +209,14 @@ export class SessionRuntime implements OnApplicationShutdown {
       IDLE_LIFETIME_MS,
       Math.max(0, req.session.createdAt + ABSOLUTE_LIFETIME_MS - now),
     );
-    await this.operation((done) => req.session.save(done));
+    try {
+      await this.operation((done) => req.session.save(done));
+    } catch (error) {
+      // destroy removes the request's session immediately, preventing response-end
+      // persistence/cookie issuance even when deleting an uncertain write fails.
+      await this.operation((done) => req.session.destroy(done)).catch(() => {});
+      throw error;
+    }
   }
 
   async destroy(req: Request, res: Response): Promise<void> {
