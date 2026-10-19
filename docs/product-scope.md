@@ -35,10 +35,10 @@ Accounts are initially provisioned through a development seed. Public registrati
 is out of scope. Seed credentials must come from local configuration and must not
 be committed. Production account provisioning remains unresolved.
 
-Use server-side sessions with an opaque session ID in an HttpOnly cookie. Select
-the session store during the authentication milestone; this decision does not
-introduce Redis now. Rotate the session ID after successful login. Logout must
-invalidate the server-side session and clear its cookie.
+Use PostgreSQL-backed server-side sessions with an opaque session ID in an
+HttpOnly cookie, as selected in ADR 0004; Redis remains deferred. Rotate the
+session ID after successful login. Logout must invalidate the server-side session
+and clear its cookie.
 
 Protect all state-changing requests, including login and logout, against CSRF
 using server-validated CSRF tokens and trusted-origin validation. GET requests must

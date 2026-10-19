@@ -2,8 +2,8 @@
 
 Milestone 1 targets the backend foundation only. The frontend originally
 included in that milestone is deferred by the revised scope. Milestone 2 has user
-account groundwork; its remaining features and later milestones are planned. The
-[product scope](product-scope.md) remains the source of business rules.
+accounts and session authentication; catalog features and later milestones are
+planned. The [product scope](product-scope.md) remains the source of business rules.
 
 ## 1. Reproducible backend foundation
 
@@ -27,10 +27,10 @@ protection, login/me/logout endpoints, current-user authentication, and shared
 login throttling. Business role/ownership authorization and catalog endpoints
 remain pending; the milestone is not complete.
 
-Deliver development-seeded accounts, server-side sessions with an HttpOnly cookie,
-CSRF protection, backend authorization, and product creation, editing, archiving,
-and listing. Choose the session store here. Use ARS integer minor units with the
-documented numeric bounds and exact arithmetic; new products start with zero stock.
+Next deliver business authorization and product creation, editing, archiving,
+and listing on top of the implemented accounts and PostgreSQL sessions. Use ARS
+integer minor units with the documented numeric bounds and exact arithmetic;
+new products start with zero stock.
 
 Completion: provisioned users can demonstrate their permitted catalog actions;
 backend tests cover session rotation, logout invalidation, CSRF rejection,

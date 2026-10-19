@@ -48,7 +48,7 @@ represent. Future migrations must preserve it.
 The User table adds UUID identities, normalized unique emails, password hashes,
 explicit ADMIN/OPERATOR roles, active status, and timestamps. The email policy and
 database constraints are recorded in [ADR 0003](decisions/0003-user-accounts.md).
-Hashes remain internal; no user HTTP representations exist.
+Hashes remain internal; authentication responses expose only ID, email, and role.
 
 `PasswordService` is a small internal class using Argon2id through node-argon2.
 The explicit provisioning CLI uses Prisma directly and imports the shared email
