@@ -18,6 +18,7 @@ import {
 import { Test } from '@nestjs/testing';
 import type { Request } from 'express';
 import request from 'supertest';
+import { Roles } from '../src/auth/roles.js';
 import { AppModule } from '../src/app.module.js';
 import { ENVIRONMENT } from '../src/config/config.module.js';
 import {
@@ -38,6 +39,17 @@ let mutations = 0;
 class FutureController {
   @Get() get(@Req() req: Request) {
     return { user: req.authenticatedUser };
+  }
+  @Roles('ADMIN')
+  @Post('admin')
+  admin() {
+    mutations++;
+    return { changed: true };
+  }
+  @Roles('ADMIN', 'OPERATOR')
+  @Get('reader')
+  reader() {
+    return { readable: true };
   }
   @Post() post() {
     mutations++;
@@ -374,6 +386,36 @@ describe('session authentication HTTP contract with PostgreSQL', () => {
     expect((after.sess as { lastSeen: number }).lastSeen).toBeGreaterThan(
       (row.sess as { lastSeen: number }).lastSeen - 1000,
     );
+  });
+  it('authorizes test-only routes after authentication using the current role', async () => {
+    await request(apps[0]!.getHttpServer())
+      .get('/future-probe/reader')
+      .expect(401);
+    const authenticated = await login();
+    const mutate = () =>
+      request(apps[0]!.getHttpServer())
+        .post('/future-probe/admin')
+        .set('Origin', origin)
+        .set('Cookie', authenticated.cookie)
+        .set('x-csrf-token', authenticated.token);
+    await mutate().expect(201);
+    expect(mutations).toBe(1);
+    await db.client.user.update({
+      where: { id: userId },
+      data: { role: 'OPERATOR' },
+    });
+    await mutate().expect(403);
+    expect(mutations).toBe(1);
+    await request(apps[1]!.getHttpServer())
+      .get('/future-probe/reader')
+      .set('Cookie', authenticated.cookie)
+      .expect(200);
+    await db.client.user.update({
+      where: { id: userId },
+      data: { active: false },
+    });
+    await mutate().expect(401);
+    expect(mutations).toBe(1);
   });
   it('reloads current roles and rejects deactivated users', async () => {
     const authenticated = await login();

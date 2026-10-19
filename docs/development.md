@@ -206,13 +206,13 @@ backlog/capacity and keep API/database clocks synchronized. Thresholds are initi
 capacity choices, not a production traffic sizing claim.
 
 For production, set NODE_ENV=production, use HTTPS origins and a shared random
-SESSION_SECRET, and configure AUTH_TRUST_PROXY with only actual proxy addresses
-(for a local proxy, for example `127.0.0.1/32,::1/128`). The proxy must replace
-client-supplied forwarded headers and keep the loopback API unreachable directly.
-Production cookies are `__Host-orderflow.sid`, Secure, HttpOnly, SameSite=Lax,
-Path=/, without Domain; untrusted/plain HTTP is rejected. Local HTTP uses
-`orderflow.sid` with the same attributes except Secure. Browser SameSite behavior
-is not established by HTTP/header tests. Business authorization remains pending.
+SESSION_SECRET, and configure AUTH_TRUST_PROXY with only actual proxy addresses (for a
+local proxy, for example `127.0.0.1/32,::1/128`). The proxy must replace client-supplied
+forwarded headers and keep the loopback API unreachable directly. Production cookies are
+`__Host-orderflow.sid`, Secure, HttpOnly, SameSite=Lax, Path=/, without Domain;
+untrusted/plain HTTP is rejected. Local HTTP uses `orderflow.sid` with the same
+attributes except Secure. Browser SameSite behavior is not established by HTTP/header
+tests. Catalog role authorization is implemented; order ownership remains pending.
 
 ### Curl walkthrough
 
@@ -436,3 +436,150 @@ keys, and common service-token formats. Candidates were placeholders or syntheti
 test fixtures. No repository content was uploaded and no secret values were printed.
 This does not prove the absence of every possible secret; ignored local files,
 unreachable objects, external logs/artifacts, and remote-only refs were not scanned.
+
+## Backend catalog development
+
+The [catalog contract](product-catalog.md) records the implemented backend catalog and
+approved validation, editing, and archival policies. Use the existing authentication
+walkthrough to obtain a cookie and the rotated CSRF token. Catalog writes require the
+same trusted Origin and X-CSRF-Token; there is no CLI bypass.
+
+Catalog integration tests use the existing random-database fixture and migrations. They
+cover current roles/status, exact monetary strings, validation, SKU races, archive
+visibility, bounded deterministic pagination, conditional edit/archive races,
+repeated/concurrent archival, and sanitized errors. One concurrency test observes
+PostgreSQL row-lock waiting before committing the competing archive. Race tests
+synchronize request arrivals explicitly rather than sleeping. Test Nest apps exercising
+catalog writes enable rawBody=true, matching main, to validate UTF-8 bytes before any
+catalog mutation. No previous migration is modified.
+
+### Manual catalog walkthrough
+
+Start the migrated API and provision both development accounts using the existing
+procedures. From the root, run this with the pinned Node version and your trusted origin
+in AUTH_TRUSTED_ORIGINS. Credentials come from local configuration, not command
+arguments. The script keeps cookies/tokens in process memory and prints only method,
+path, and status. It creates one uniquely named product and leaves it archived; run
+against a dedicated development database. It does not change stock.
+
+```bash
+node --env-file-if-exists=.env --input-type=module <<'JS'
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+
+const origin = process.env.AUTH_TRUSTED_ORIGINS.split(',')[0].trim();
+const base = process.env.CATALOG_API_URL ?? origin;
+const unsafe = (method) => !['GET', 'HEAD', 'OPTIONS'].includes(method);
+async function api(session, method, path, body, expected) {
+  const headers = { Origin: origin };
+  if (session.cookie) headers.Cookie = session.cookie;
+  if (unsafe(method) && session.token) headers['X-CSRF-Token'] = session.token;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const response = await fetch(`${base}${path}`, {
+    method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const issued = response.headers.getSetCookie()[0];
+  if (issued) session.cookie = issued.split(';')[0];
+  assert.equal(response.status, expected, `${method} ${path}`);
+  console.log(`${method} ${path}: ${response.status}`);
+  return response.status === 204 ? null : response.json();
+}
+async function login(email, password) {
+  assert.ok(email && password, 'Development credentials are required.');
+  const session = {};
+  const csrf = await api(session, 'GET', '/auth/csrf', undefined, 200);
+  session.token = csrf.csrfToken;
+  const logged = await api(session, 'POST', '/auth/login', { email, password }, 200);
+  session.token = logged.csrfToken; // Login rotates the token and cookie.
+  return session;
+}
+
+await api({}, 'GET', '/products', undefined, 401);
+const admin = await login(process.env.DEV_ADMIN_EMAIL, process.env.DEV_ADMIN_PASSWORD);
+const operator = await login(process.env.DEV_OPERATOR_EMAIL, process.env.DEV_OPERATOR_PASSWORD);
+const body = { sku: `MANUAL-${randomUUID()}`, name: ' Manual coffee ', priceMinor: '9007199254740991' };
+const product = await api(admin, 'POST', '/products', body, 201);
+assert.equal(product.priceMinor, '9007199254740991');
+assert.equal(product.name, 'Manual coffee');
+const path = `/products/${product.id}`;
+await api(operator, 'GET', path, undefined, 200);
+await api(operator, 'GET', '/products?status=all&limit=1&offset=0', undefined, 200);
+await api(operator, 'POST', '/products', body, 403);
+await api(operator, 'PATCH', path, { name: 'Denied' }, 403);
+await api(operator, 'POST', `${path}/archive`, undefined, 403);
+await api(admin, 'POST', '/products', body, 409);
+await api(admin, 'PATCH', path, { priceMinor: '1.5' }, 400);
+const changed = await api(admin, 'PATCH', path, { priceMinor: '0', description: ' ' }, 200);
+assert.equal(changed.priceMinor, '0');
+assert.equal(changed.description, null);
+const token = admin.token;
+admin.token = 'invalid';
+await api(admin, 'PATCH', path, { name: 'Denied' }, 403);
+admin.token = token;
+const archived = await api(admin, 'POST', `${path}/archive`, undefined, 200);
+assert.equal(archived.active, false);
+assert.deepEqual(await api(admin, 'POST', `${path}/archive`, {}, 200), archived);
+await api(admin, 'PATCH', path, { name: 'Denied' }, 409);
+assert.deepEqual(await api(operator, 'GET', path, undefined, 200), archived);
+await api(operator, 'GET', '/products?status=archived', undefined, 200);
+await api(admin, 'POST', '/auth/logout', undefined, 204);
+await api(operator, 'POST', '/auth/logout', undefined, 204);
+await api(admin, 'GET', '/products', undefined, 401);
+JS
+```
+
+CATALOG_API_URL can select an API address separately from the configured trusted Origin,
+for example an ephemeral local port. This does not bypass Origin or CSRF validation.
+This HTTP walkthrough does not verify browser SameSite behavior.
+
+### Backend catalog verification record
+
+On 2026-10-19, using Node 24.22.0 and pnpm 10.34.7, frozen installation,
+formatting, lint, typecheck, all 82 unit/HTTP tests, all 169 PostgreSQL integration
+tests, and build passed. Docker access was unavailable; tests used a dedicated
+PostgreSQL 17.6 server compiled from the official source archive with its published
+SHA-256 verified. No schema or migration changes were needed.
+
+Catalog tests cover current-role authorization before product access, inactive
+users, anonymous requests with valid CSRF, Origin/CSRF denials, exact price limits,
+malformed Unicode/UTF-8, rejected mutation rollback, SKU races, filtering and
+bounded pagination, submitted-field last-write-wins, concurrent/repeated archival,
+and an SQL edit blocked behind an uncommitted archive. Synchronization uses explicit
+gates and observed database lock state, not arbitrary sleeps.
+
+The manual walkthrough above was executed against the compiled API on a separate
+random database, using root pnpm db:migrate and users:provision:dev with ephemeral
+credentials. Observed: unauthenticated read 401; both logins 200; creation 201;
+operator reads 200 and all three mutation types 403; duplicate SKU 409; invalid
+price 400; valid edit 200; invalid CSRF 403; first/repeated archive 200 with the same
+representation/timestamp; archived edit 409; operator archived reads 200; both
+logouts 204; subsequent protected read 401. PostgreSQL retained one archived row
+with exact zero price and no remaining sessions. Captured API logs contained
+neither generated account password nor SESSION_SECRET.
+
+The compiled API completed SIGTERM shutdown. All generated test/manual databases
+were removed, and the disposable PostgreSQL server was stopped. Local .env was
+untouched. These are local HTTP/database results; no hosted CI or browser/SameSite
+verification is claimed. Frontend, inventory, orders, optimistic locking, and
+snapshot-consistent pagination remain unimplemented.
+
+### Catalog publication review
+
+The publication review reproduced acceptance of form-encoded catalog bodies,
+including malformed percent-encoded UTF-8 that the form parser replaced before
+validation. Catalog bodies now require application/json; unrelated route parsers
+retain their existing behavior. Raw JSON bytes still use Nest rawBody capture and
+a fatal UTF-8 decoder without a second JSON parser or a higher body-size limit.
+
+Buffer-based HTTP regressions explicitly bypass Superagent JSON serialization so
+they send the intended wire bytes. A valid raw Buffer control verifies the test
+transport; malformed raw UTF-8 and non-UTF-8 JSON are rejected before service calls.
+Focused HTTP tests also preserve the 100 KiB JSON limit and unrelated JSON/form
+parsing. The original full-suite verification above is separate evidence.
+
+With the pinned Node/pnpm versions, formatting, lint, typecheck, build, 40 focused
+unit/HTTP tests (encoding, error classification, health, and auth configuration),
+and 136 PostgreSQL catalog/authentication integration tests passed after the fix.
+The full local suite was not repeated. All random review databases were removed
+and the dedicated PostgreSQL 17.6 server was stopped. No existing migration or
+local .env was changed. Hosted CI results are tracked separately on the PR.

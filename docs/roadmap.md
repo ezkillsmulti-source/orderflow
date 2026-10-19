@@ -1,9 +1,10 @@
 # Roadmap
 
-Milestone 1 targets the backend foundation only. The frontend originally
-included in that milestone is deferred by the revised scope. Milestone 2 has user
-accounts and session authentication; catalog features and later milestones are
-planned. The [product scope](product-scope.md) remains the source of business rules.
+Milestone 1 targets the backend foundation only. The frontend originally included in
+that milestone is deferred by the revised scope. Milestone 2 has user accounts, session
+authentication, role authorization, and the backend catalog; frontend and later
+milestones remain planned. The [product scope](product-scope.md) remains the source of
+business rules.
 
 ## 1. Reproducible backend foundation
 
@@ -20,17 +21,18 @@ No frontend, authentication, business endpoints, Redis, or worker is included.
 
 ## 2. Authenticated product catalog
 
-Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles,
-normalized email uniqueness, Argon2id password hashing, and explicit development
-provisioning, PostgreSQL-backed sessions with idle/absolute expiry, CSRF/origin
-protection, login/me/logout endpoints, current-user authentication, and shared
-login throttling. Business role/ownership authorization and catalog endpoints
-remain pending; the milestone is not complete.
+Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles, normalized
+email uniqueness, Argon2id password hashing, and explicit development provisioning,
+PostgreSQL-backed sessions with idle/absolute expiry, CSRF/origin protection,
+login/me/logout endpoints, current-user authentication, and shared login throttling.
+Current-role authorization and catalog creation, listing, detail reads, editing, and
+archiving are implemented. Order ownership authorization remains pending. The milestone
+is not complete: frontend and browser workflow verification remain pending.
 
-Next deliver business authorization and product creation, editing, archiving,
-and listing on top of the implemented accounts and PostgreSQL sessions. Use ARS
-integer minor units with the documented numeric bounds and exact arithmetic;
-new products start with zero stock.
+Next deliver the frontend authenticated catalog workflow and browser verification. The
+[catalog contract](product-catalog.md) records the approved policies. Use ARS integer
+minor units with the documented numeric bounds and exact arithmetic; zero initial stock
+remains a requirement for the later inventory implementation.
 
 Completion: provisioned users can demonstrate their permitted catalog actions;
 backend tests cover session rotation, logout invalidation, CSRF rejection,

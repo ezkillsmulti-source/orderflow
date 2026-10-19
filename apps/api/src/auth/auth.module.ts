@@ -10,6 +10,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthenticationService } from './authentication.service.js';
 import { PasswordService } from './password.service.js';
 import { AuthGuard } from './auth.guard.js';
+import { RolesGuard } from './roles.guard.js';
 import { RequestProtection } from './request-protection.js';
 import { LoginThrottle } from './login-throttle.js';
 import { ApiExceptionFilter } from './api-exception.filter.js';
@@ -24,6 +25,7 @@ import { SessionRuntime } from './session.runtime.js';
     RequestProtection,
     LoginThrottle,
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
   ],
 })

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { readEnvironment, type Environment } from './config/environment.js';
@@ -16,7 +17,10 @@ async function bootstrap(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    abortOnError: false,
+    rawBody: true,
+  });
   app.enableShutdownHooks();
   await app.listen(environment.port, '127.0.0.1');
 }

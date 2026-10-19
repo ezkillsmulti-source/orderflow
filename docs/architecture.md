@@ -6,7 +6,7 @@ repository layer or shared workspace package.
 
 ## Current modules
 
-- `AppModule` composes configuration, health, and authentication.
+- `AppModule` composes configuration, health, authentication, and products.
 - `ConfigModule` validates the database URL and API port, exposing one configuration
   provider. Invalid configuration prevents startup; values are not printed.
 - `DatabaseModule` owns one Prisma client and its PostgreSQL driver adapter. The
@@ -17,7 +17,10 @@ repository layer or shared workspace package.
   routes. It manages bounded expired-session/limiter cleanup and closes its separate,
   bounded pool on shutdown. Configuration and lifetimes are in [ADR 0004](decisions/0004-session-authentication.md).
 - `AuthModule` installs session loading before origin/CSRF/shared-admission checks,
-  exposes CSRF/login/me/logout, and registers a default authentication guard.
+  exposes CSRF/login/me/logout, and registers a default authentication guard followed by a role guard.
+  Routes can declare explicit allowed roles through `@Roles`; the role guard uses
+  only the freshly authenticated identity and runs before controllers or services.
+  Routes without role metadata retain their existing authentication policy.
   Protected routes read current User status and role. A fixed-response exception
   filter prevents parser and infrastructure details from echoing input or being logged.
 
@@ -38,11 +41,11 @@ settings are for the foundation; assess capacity when business requests exist.
 
 ## Persistence boundary
 
-The initial `Product` table is schema groundwork only. It has UUID identifiers,
-case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices in ARS
-minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
-and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps.
-The SQL migration adds the price check constraint that Prisma schema syntax cannot
+The existing `Product` table supports the implemented backend catalog. It has UUID
+identifiers, case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices
+in ARS minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
+and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps. The
+SQL migration adds the price check constraint that Prisma schema syntax cannot
 represent. Future migrations must preserve it.
 
 The User table adds UUID identities, normalized unique emails, password hashes,
@@ -63,7 +66,28 @@ PostgreSQL counters for source/account login limits and global admission. Automa
 table creation and unbounded library cleanup are disabled; migrations create both
 tables. Store/counter failures return sanitized 503 with no in-memory fallback.
 
-There are no product endpoints, business authorization, inventory, orders, frontend,
-Redis, or worker. Future business features remain governed by the
-[product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
-for runtime, schema, and serialization choices.
+`ProductsModule` composes a focused controller/service with DatabaseModule. The
+controller validates bodies, path IDs, and original query strings, enforces wire
+encoding, and maps products to explicit JSON responses. Main enables Nest rawBody
+capture so invalid UTF-8 cannot be silently replaced before validation. Raw bytes
+are request-local and never logged or returned. Custom test applications exercising
+catalog writes must also enable rawBody=true.
+
+ProductsService uses DatabaseService directly; PostgreSQL arbitrates SKU races.
+There is no repository abstraction. Monetary strings are validated before BigInt
+conversion and serialized explicitly. Catalog error types permit fixed conflict
+and availability messages without changing authentication contracts. Unrecognized
+failures remain sanitized 500.
+
+ProductsService edits with an atomic id/active=true predicate and returned row, and
+archives only active rows. A repeated archive reads the existing row without updating
+timestamps. Submitted fields use last-write-wins; optimistic locking is not implemented.
+These single-row writes need no explicit multi-statement transaction. No prior migration
+changes or new migration are required.
+
+The backend catalog and role authorization are implemented. Order ownership checks
+remain pending. See the [catalog contract](product-catalog.md). There is no inventory,
+orders, frontend, Redis, or worker. Future business features remain governed by the
+[product scope](product-scope.md). See the
+[decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
+choices.
