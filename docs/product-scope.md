@@ -13,16 +13,16 @@ planned for a later milestone; the first release must not claim to support it.
 
 ## Permissions
 
-| Action | Administrator | Operator |
-| --- | --- | --- |
-| Log in and log out | Yes | Yes |
-| List products | Yes | Yes |
-| Create, edit, and archive products | Yes | No |
-| View inventory availability | Yes | Yes |
-| Adjust inventory | Yes | No |
-| Create orders | Yes | Yes |
-| List orders and view details | All orders | Own orders only |
-| Cancel orders | All orders | Own orders only |
+| Action                             | Administrator | Operator        |
+| ---------------------------------- | ------------- | --------------- |
+| Log in and log out                 | Yes           | Yes             |
+| List products                      | Yes           | Yes             |
+| Create, edit, and archive products | Yes           | No              |
+| View inventory availability        | Yes           | Yes             |
+| Adjust inventory                   | Yes           | No              |
+| Create orders                      | Yes           | Yes             |
+| List orders and view details       | All orders    | Own orders only |
+| Cancel orders                      | All orders    | Own orders only |
 
 The backend enforces permissions on every protected operation, regardless of
 whether the frontend exposes a control. Order ownership is the authenticated

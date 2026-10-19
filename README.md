@@ -20,9 +20,10 @@ operating an application.
 
 ## Status
 
-Implementation has not started. This repository currently contains initial
-planning and contribution documentation only. There is no application to run,
-and no setup commands, test results, or deployment URLs are available yet.
+Application implementation has not started. The repository contains planning
+and contribution documentation plus pinned workspace tooling. See
+[development](docs/development.md) for installation and formatting/lint checks.
+There is no application or deployment yet.
 
 ## Planned stack and architecture
 

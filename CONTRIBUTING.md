@@ -18,6 +18,22 @@ relevant existing code or instructions before making changes.
 - Update documentation alongside behavior changes, including limitations and
   decisions that affect users or operation.
 
+## Task-focused commits
+
+Each commit should deliver one specific, coherent task. Keep its implementation,
+meaningful tests, and relevant documentation together; do not split by file type.
+Use a descriptive Conventional Commit message in English. Separate independent
+tooling, bootstrap, persistence, health, and CI tasks when their intermediate
+states remain usable. Keep tightly coupled changes together and explain why.
+
+Introduce root scripts only when their packages and prerequisites exist. Validate
+each commit with the checks applicable at that stage. Review generated lockfiles
+with their manifests; distinguish generated dependency lines from handwritten
+implementation when assessing scope. Preserve unrelated changes. Rewrite only
+explicitly authorized unpublished history after confirming a clean tree and
+creating a backup branch; preserve final contents except for documented fixes.
+Never rewrite main or published commits.
+
 ## Verification
 
 Choose verification appropriate to the change. Review documentation for accurate
@@ -28,14 +44,14 @@ Verify exact integer money calculations, numeric bounds, ownership restrictions,
 and idempotent effects when changing those behaviors. Do not claim exactly-once
 event delivery based on tests of idempotent effects.
 
-Implementation and tooling have not started. Use documented project commands once
-they exist; do not invent setup or verification commands. Report exactly which
+Use the pinned toolchain and documented checks in [development](docs/development.md).
+Do not invent setup or verification commands. Report exactly which
 checks were performed and their outcomes, and identify checks not run and why.
 Never claim successful checks without having performed them.
 
 ## Sensitive information
 
 Never commit credentials, tokens, private keys, production data, or other sensitive
-information. Use local configuration for secrets. A future `.env.example` may
+information. Use local configuration for secrets. An `.env.example` must
 contain placeholders only. Review staged content even when ignore rules exist;
 ignore rules do not protect files already tracked by Git.

@@ -16,6 +16,7 @@
 - Report changes, checks actually performed, and remaining limitations.
 - Never fabricate commands, successful checks, or results.
 - Review untracked file contents as well as tracked diffs; normal diffs omit them.
+- Follow the task-focused commit policy in `CONTRIBUTING.md#task-focused-commits`.
 - Do not commit or push unless explicitly instructed.
 
 Implementation has not started. The initial task is documentation only; do not
