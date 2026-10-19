@@ -9,12 +9,12 @@ export class ProductsService {
 
   create(data: ProductInput) {
     return this.database.client.product
-      .create({ data: { ...data, active: true } })
+      .create({ data: { ...data, active: true }, include: { image: true } })
       .catch(productDatabaseError);
   }
   async get(id: string) {
     const product = await this.database.client.product
-      .findUnique({ where: { id } })
+      .findUnique({ where: { id }, include: { image: true } })
       .catch(productDatabaseError);
     if (!product) throw new NotFoundException();
     return product;
@@ -23,6 +23,7 @@ export class ProductsService {
     // PostgreSQL rechecks active=true after waiting for concurrent row writers.
     const [product] = await this.database.client.product
       .updateManyAndReturn({
+        include: { image: true },
         where: { id, active: true },
         data,
       })
@@ -34,6 +35,7 @@ export class ProductsService {
   async archive(id: string) {
     const [product] = await this.database.client.product
       .updateManyAndReturn({
+        include: { image: true },
         where: { id, active: true },
         data: { active: false },
       })
@@ -44,6 +46,7 @@ export class ProductsService {
   list(page: ProductPage) {
     return this.database.client.product
       .findMany({
+        include: { image: true },
         where:
           page.status === 'all' ? {} : { active: page.status === 'active' },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],

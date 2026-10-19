@@ -9,6 +9,7 @@ import {
   ProductConflict,
   ProductStorageUnavailable,
 } from '../products/product.errors.js';
+import { ImageUnavailable } from '../products/images/image.errors.js';
 import { isHealthRequest } from './http-path.js';
 
 /** Fixed responses also prevent JSON parser and driver errors from echoing credentials. */
@@ -42,6 +43,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
       403: 'Request forbidden.',
       404: 'Not found.',
       413: 'Request body too large.',
+      415: 'Unsupported image format.',
+      422: 'Invalid image.',
+      408: 'Request timeout.',
       429: 'Too many requests.',
       500: 'Internal server error.',
       503: 'Authentication storage unavailable.',
@@ -51,15 +55,17 @@ export class ApiExceptionFilter implements ExceptionFilter {
       if (body.retryAfter) res.setHeader('Retry-After', body.retryAfter);
     }
     const message =
-      error instanceof ProductConflict
-        ? 'Product conflict.'
-        : error instanceof ProductStorageUnavailable
-          ? 'Product storage unavailable.'
-          : status === 401 &&
-              error instanceof HttpException &&
-              error.message === 'Invalid email or password.'
-            ? 'Invalid email or password.'
-            : (messages[status] ?? 'Request failed.');
+      error instanceof ImageUnavailable
+        ? 'Product image storage unavailable.'
+        : error instanceof ProductConflict
+          ? 'Product conflict.'
+          : error instanceof ProductStorageUnavailable
+            ? 'Product storage unavailable.'
+            : status === 401 &&
+                error instanceof HttpException &&
+                error.message === 'Invalid email or password.'
+              ? 'Invalid email or password.'
+              : (messages[status] ?? 'Request failed.');
     res.status(status).json({ statusCode: status, message });
   }
 }

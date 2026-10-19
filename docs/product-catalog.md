@@ -150,3 +150,34 @@ physical deletion or inventory operation exists.
 
 For an executable authenticated ADMIN/OPERATOR walkthrough, see
 [development](development.md#manual-catalog-walkthrough).
+
+## Primary image (milestone 4A backend)
+
+Each product response includes `image: null` or:
+
+```json
+{
+  "version": "00000000-0000-4000-8000-000000000001",
+  "thumbnail": {
+    "url": "/products/PRODUCT_ID/image/VERSION/thumbnail",
+    "width": 320,
+    "height": 240
+  },
+  "detail": {
+    "url": "/products/PRODUCT_ID/image/VERSION/detail",
+    "width": 1600,
+    "height": 1200
+  }
+}
+```
+
+URLs are backend paths. The Vite frontend's `/api` proxy prefix must be added once
+by a future image client, never stored in metadata. Dimensions describe the encoded
+variants. JSON product writes cannot assign image fields, IDs, or storage keys.
+
+`GET /products/:id/image/:version/:variant` accepts `thumbnail` or `detail` and no
+query parameters. ADMIN and OPERATOR may read current images, including archived
+products. Missing products, absent images, and obsolete versions return 404.
+Invalid identifiers/variants return 400. Missing current files return a sanitized
+503, rather than exposing paths or silently deleting metadata. Responses stream
+WebP with private/no-store caching, nosniff, and same-origin resource policy.

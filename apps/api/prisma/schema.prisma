@@ -22,15 +22,41 @@ model User {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 }
 
+enum ProductImageState {
+  PENDING
+  PUBLISHED
+  RETIRED
+  DELETING
+  DELETED
+}
+
+model ProductImage {
+  id              String            @id @default(uuid()) @db.Uuid
+  productId       String            @db.Uuid
+  state           ProductImageState @default(PENDING)
+  detailWidth     Int?
+  detailHeight    Int?
+  thumbnailWidth  Int?
+  thumbnailHeight Int?
+  createdAt       DateTime          @default(now()) @db.Timestamptz(3)
+  cleanupAfter    DateTime          @db.Timestamptz(3)
+  product         Product?
+
+  @@unique([id, productId])
+  @@index([state, cleanupAfter])
+}
+
 model Product {
-  id          String   @id @default(uuid()) @db.Uuid
-  sku         String   @unique
+  id          String        @id @default(uuid()) @db.Uuid
+  imageId     String?       @unique @db.Uuid
+  image       ProductImage? @relation(fields: [imageId], references: [id], onDelete: Restrict)
+  sku         String        @unique
   name        String
   description String?
-  priceMinor  BigInt   @db.BigInt
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  priceMinor  BigInt        @db.BigInt
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
 }
 
 model HttpSession {

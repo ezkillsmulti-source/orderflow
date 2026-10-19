@@ -847,3 +847,14 @@ port, and Vite on 127.0.0.1:5183; it did not reuse or modify the manual preview.
 The complete local suite was not repeated. Existing hosted CI retains the complete
 backend/frontend and browser checks. User feedback is recorded separately in the
 [design guide](ui-design.md#review-feedback), not counted as an additional test run.
+
+## Private product image storage
+
+Optionally set `PRODUCT_IMAGE_STORAGE_DIR` to an absolute directory outside the
+repository, owned by the API user with mode 700. New directories are created with
+mode 700; existing directory permissions are not silently changed. Never use the
+web source directory or publish this directory through a static server. Preserve
+this directory alongside PostgreSQL backups. When unset, existing routes continue
+to work and operations requiring image storage return sanitized 503 responses.
+Apply the committed image migration with `pnpm db:migrate`. See
+[ADR 0005](decisions/0005-product-image-storage.md) for lifecycle and deployment limits.

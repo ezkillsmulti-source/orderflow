@@ -63,7 +63,13 @@ lint, typecheck, and both builds. Rendered screens were inspected at 1280x900 an
 checks do not establish full accessibility compliance. See [UI design](ui-design.md)
 and the [verification record](development.md#product-workspace-redesign-verification--2026-10-19).
 
-## 4. Accountable inventory
+## 4A. Product images
+
+Backend increment: one optional primary image with authenticated reads and a private
+recoverable storage lifecycle. Upload/removal and cleanup complete this backend
+increment; browser image workflows remain pending. A gallery is deferred.
+
+## 4B/4C. Accountable inventory
 
 Deliver available-stock visibility and administrator adjustments using signed
 integer deltas, non-empty reasons, and authenticated actors. Select the

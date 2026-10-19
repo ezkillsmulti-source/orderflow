@@ -148,6 +148,7 @@ describe('catalog creation and reads', () => {
         description: 'bag',
         priceMinor,
         active: true,
+        image: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
       });

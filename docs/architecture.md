@@ -124,3 +124,9 @@ uses the real API and a random, migrated PostgreSQL database with ephemeral acco
 its runner cleans up children and the database on success or failure. CI retains the
 backend checks and adds Chromium installation and browser workflows. Production web
 hosting and reverse-proxy configuration remain planned.
+
+Product images remain in the ProductsModule with explicit response mapping and a
+small private local storage boundary. PostgreSQL tracks lifecycle candidates and
+retired versions; authenticated controllers stream current variants. See
+[ADR 0005](decisions/0005-product-image-storage.md). No public static directory, generic
+asset framework, or frontend image workflow is introduced.
