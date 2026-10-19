@@ -22,7 +22,10 @@ export class ApiError extends Error {
       403: 'This request was forbidden. Your permissions or security token may have changed. Review the page before trying again.',
       404: 'This product could not be found.',
       409: 'The product could not be saved. Its SKU may be in use, or it may have been archived. Refresh to check its current state.',
+      408: 'The upload timed out. Check the product before trying again.',
       413: 'The request is too large.',
+      415: 'Choose a JPEG, PNG, or WebP image.',
+      422: 'The image could not be processed. Use a valid static image within the documented limits.',
       429: 'Too many requests. Please wait before trying again.',
       500: 'The service is temporarily unavailable.',
       502: 'The service returned an unreadable response.',
@@ -105,6 +108,7 @@ export class SessionClient {
     this.pending.add(controller);
     const timeout = setTimeout(() => controller.abort(), 15000);
     const unsafe = method !== 'GET';
+    const multipart = body instanceof FormData;
     try {
       let response: Response;
       try {
@@ -114,14 +118,19 @@ export class SessionClient {
           cache: 'no-store',
           signal: controller.signal,
           headers: {
-            ...(body !== undefined
+            ...(body !== undefined && !multipart
               ? { 'Content-Type': 'application/json' }
               : {}),
             ...(unsafe && this.csrfToken
               ? { 'X-CSRF-Token': this.csrfToken }
               : {}),
           },
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body:
+            body === undefined
+              ? undefined
+              : multipart
+                ? body
+                : JSON.stringify(body),
         });
       } catch {
         if (epoch !== this.epoch) throw new Cancelled();
@@ -136,7 +145,7 @@ export class SessionClient {
         const seconds = Number(response.headers.get('Retry-After') ?? 0);
         throw new ApiError(
           response.status,
-          unsafe && response.status >= 500,
+          unsafe && (response.status >= 500 || response.status === 408),
           Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 3600
             ? seconds
             : 0,

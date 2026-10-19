@@ -172,7 +172,7 @@ Each product response includes `image: null` or:
 ```
 
 URLs are backend paths. The Vite frontend's `/api` proxy prefix must be added once
-by a future image client, never stored in metadata. Dimensions describe the encoded
+by the image client, never stored in metadata. Dimensions describe the encoded
 variants. JSON product writes cannot assign image fields, IDs, or storage keys.
 
 `GET /products/:id/image/:version/:variant` accepts `thumbnail` or `detail` and no

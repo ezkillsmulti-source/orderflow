@@ -10,6 +10,7 @@ import {
 } from './catalog-data';
 import { ArchiveDialog } from './ArchiveDialog';
 import { EditProduct, ProductForm } from './ProductForm';
+import { ImageManager } from './ImageManager';
 import { ProductImage } from './ProductImage';
 import { useProduct } from './use-product';
 import { formatPrice } from './money';
@@ -163,7 +164,24 @@ function ProductDetail({
       )}
       <section className="card image-panel" aria-labelledby="image-title">
         <h2 id="image-title">Product image</h2>
-        <ProductImage data={data} />
+        <div className="image-panel-layout">
+          <ProductImage data={data} />
+          {admin && data.active ? (
+            <ImageManager
+              data={data}
+              refresh={(message = '') => {
+                setNotice(message);
+                setRevision((value) => value + 1);
+              }}
+            />
+          ) : (
+            <p className="help">
+              {data.active
+                ? 'Read-only image access. Administrators manage product images.'
+                : 'Archived image · Available for reference. Image changes are unavailable.'}
+            </p>
+          )}
+        </div>
       </section>
       <div className="detail-grid">
         <section className="card" aria-labelledby="identity-title">

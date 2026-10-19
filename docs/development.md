@@ -939,7 +939,7 @@ The catalog shows authenticated thumbnails; details show the larger variant. No
 image and failed-load placeholders are distinct. Backend descriptor paths are
 validated against the product/version/variant, then prefixed with `/api` once.
 Existing setup commands apply; image data requires PRODUCT_IMAGE_STORAGE_DIR and
-committed migrations as documented above. This display increment has no upload UI.
+committed migrations as documented above. Administrator controls are described in the manual image walkthrough below.
 
 The browser runner now selects separate loopback API and Vite ports, explicitly
 trusts only its generated web origin, and creates private temporary image storage
@@ -952,3 +952,75 @@ format checks passed. Four focused real-API image browser cases passed at deskto
 and mobile sizes. Synthetic catalog/detail/failure captures were visually reviewed;
 no page overflow was observed. Image assertions wait for the expected variant URL
 and successful native decoding, rather than a previous screen's image.
+
+### Manual product image walkthrough
+
+Use the pinned Node/pnpm toolchain and existing local database/auth configuration.
+Preserve your root `.env`; add PRODUCT_IMAGE_STORAGE_DIR with an **absolute** path
+outside the repository, not a literal `$HOME` expression. For example, first create
+a private local directory (existing permissions must already be 700):
+
+```sh
+mkdir -p -m 700 "$HOME/.local/share/orderflow/product-images"
+docker compose up -d --wait postgres
+pnpm db:migrate
+pnpm dev
+```
+
+Set the variable to that directory's expanded absolute path before starting the API.
+Keep http://127.0.0.1:5173 in AUTH_TRUSTED_ORIGINS. In a second terminal:
+
+```sh
+pnpm dev:web
+```
+
+1. Open http://127.0.0.1:5173 and sign in as your existing ADMIN account. Open an
+   active product's details. No credentials need to be copied into commands.
+2. Choose a static JPEG/PNG/WebP up to 5 MiB. Inspect the separate preview: the
+   current image remains unchanged until Upload selected image is activated.
+3. Confirm upload; verify the detail image and return to the catalog to see its
+   thumbnail. Select another image and upload explicitly to replace it.
+4. Open Remove image, cancel with Escape, and verify focus returns to the opener.
+   Open it again and confirm. The no-image fallback replaces the current image.
+5. Try an invalid/oversized file. Selection is retained for recoverable server
+   errors; errors describe the field. After a network/uncertain response, use Check
+   image status before attempting another mutation. It performs a read, not a retry.
+6. Archive a product with an image; both roles can read it and no image management
+   controls remain. Sign out, sign in as OPERATOR, reload and browse active/archived
+   images. Sign out again. Existing account provisioning is unchanged.
+
+SessionClient passes FormData directly, allowing the browser to supply its boundary;
+CSRF stays in memory and cookies remain browser-managed. Application image URLs are
+strictly validated backend paths with exactly one `/api` prefix. Failed native image
+loads show Image unavailable without assuming every failure means session expiry.
+The browser suite uses synthetic images, random databases/ports and private temporary
+storage, removed on success/failure. Credential headers in HTTP failure logs are
+redacted; no screenshots, traces or storage-state artifacts are uploaded by CI.
+
+### Product image frontend verification — 2026-10-19
+
+Backend PR #7 merged as `d0a4b70c819267c69c282f465100779280e6c74a`, preserving
+`58ccbff` and `8869004`. [Post-merge CI](https://github.com/ezkillsmulti-source/orderflow/actions/runs/39341271769)
+passed for that exact merge SHA before frontend implementation began.
+
+With Node 24.22.0 / pnpm 10.34.7, final formatting, root lint, frontend strict
+typecheck, 58 web tests, API/web builds and all 52 real-API Chromium browser cases
+passed. The browser runner compiles API tests/source; its new credential-output
+redaction test also passed separately. Unchanged backend unit/integration suites
+were not repeated locally; the post-merge run above verified the merged backend.
+No production API code or database migration changed in the frontend branch.
+
+The 20 image browser cases verify decoded thumbnail/detail loads, ADMIN add/replace/
+remove, no automatic upload on selection, invalid inputs and field associations,
+archival and role/session changes, local URL disposal, origin/CSRF rejection, and
+lost responses after actual committed upload/removal without mutation replay.
+The 32 existing browser cases remain intact. Failures found in test synchronization
+and header injection were corrected; the complete suite was rerun successfully.
+
+Private synthetic captures of catalog/detail/fallbacks, selected previews, validation
+and removal confirmation were visually reviewed at 1280x900 and 390x844. Keyboard
+Tab/Shift+Tab/Escape, modal opener restoration, error focus, native image decoding,
+computed text/focus contrast and 320px page reflow were checked. Automated checks do
+not establish complete accessibility compliance. Firefox, WebKit, physical devices,
+production HTTPS and hosted CI for the unpushed frontend branch were not tested.
+No private screenshots, credentials, storage state or uploaded files are tracked.

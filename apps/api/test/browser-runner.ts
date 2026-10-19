@@ -6,6 +6,7 @@ import { resolve, join } from 'node:path';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
+import { browserOutput } from './support/browser-output.js';
 import { createTestDatabase } from './support/test-database.js';
 import { provisionDevelopmentAccounts } from '../src/users/provision-development.js';
 
@@ -15,12 +16,6 @@ let db: Awaited<ReturnType<typeof createTestDatabase>> | undefined;
 const secrets: string[] = [];
 let stopping = false;
 let imageRuntime: string | undefined;
-function safe(text: string) {
-  return secrets.reduce(
-    (value, secret) => value.replaceAll(secret, '[redacted]'),
-    text,
-  );
-}
 function start(file: string, args: string[], env: NodeJS.ProcessEnv) {
   if (stopping) throw new Error('Browser verification interrupted.');
   const child = spawn(process.execPath, [file, ...args], {
@@ -156,7 +151,7 @@ async function main() {
     output += data.toString();
   });
   const [code] = await once(browser, 'exit');
-  process.stdout.write(safe(output));
+  process.stdout.write(browserOutput(output, secrets));
   if (code !== 0) throw new Error('Browser checks failed.');
 }
 let closing: Promise<void> | undefined;

@@ -1004,3 +1004,51 @@ dialog .actions {
 .image-panel {
   margin-top: var(--space-6);
 }
+.image-panel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+.image-management {
+  min-width: 0;
+}
+.image-management h3 {
+  margin-top: 0;
+}
+.image-management input[type='file'] {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+}
+.image-management input::file-selector-button {
+  font: inherit;
+  padding: var(--space-2);
+  margin-right: var(--space-3);
+}
+.selection-preview img {
+  display: block;
+  width: 100%;
+  max-width: 18rem;
+  height: 10rem;
+  object-fit: contain;
+  background: var(--color-soft);
+  border: var(--border-fine);
+  border-radius: var(--radius-sm);
+}
+.image-actions {
+  flex-wrap: wrap;
+}
+.image-remove,
+.image-check {
+  margin-top: var(--space-4);
+}
+@media (max-width: 700px) {
+  .image-panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+  .image-actions > * {
+    width: 100%;
+  }
+}

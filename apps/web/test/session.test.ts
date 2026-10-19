@@ -225,3 +225,71 @@ it.each(['read-401', 'read-403', 'logout-401', 'revalidation-401'])(
     expect(client.getSnapshot().user?.id).toBe('different');
   },
 );
+
+it('sends FormData untouched with rotated CSRF and no manual multipart header', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  const form = new FormData();
+  form.append(
+    'image',
+    new File(['synthetic'], 'image.png', { type: 'image/png' }),
+  );
+  fetcher.mockResolvedValueOnce(json({}));
+  await client.request('/products/id/image', 'PUT', form);
+  expect(fetcher.mock.calls[2]).toEqual([
+    '/api/products/id/image',
+    expect.objectContaining({
+      method: 'PUT',
+      body: form,
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': 'after' },
+    }),
+  ]);
+});
+it.each([0, 401, 403, 408, 413, 415, 422, 503])(
+  'handles multipart error %s without replay',
+  async (status) => {
+    const { fetcher, client } = setup();
+    await login(fetcher, client);
+    if (status === 0) fetcher.mockRejectedValueOnce(new Error('network'));
+    else fetcher.mockResolvedValueOnce(json({}, status));
+    if (status === 403) fetcher.mockResolvedValueOnce(json({ user }));
+    await expect(
+      client.request('/products/id/image', 'PUT', new FormData()),
+    ).rejects.toMatchObject({
+      status,
+      uncertain: [0, 408, 503].includes(status),
+    });
+    expect(
+      fetcher.mock.calls.filter(([, init]) => init?.method === 'PUT'),
+    ).toHaveLength(1);
+    if (status === 401) expect(client.getSnapshot().phase).toBe('anonymous');
+  },
+);
+it('cancels a delayed upload across a confirmed logout even when fetch ignores abort', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  let finish!: (value: Response) => void;
+  let begin!: () => void;
+  const started = new Promise<void>((resolve) => {
+    begin = resolve;
+  });
+  fetcher.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+        begin();
+      }),
+  );
+  const pending = client
+    .request('/products/id/image', 'PUT', new FormData())
+    .catch((error) => error);
+  await started;
+  fetcher
+    .mockResolvedValueOnce(json({ csrfToken: 'logout' }))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await client.logout();
+  finish(json({ image: 'old account' }));
+  expect(await pending).toBeInstanceOf(Cancelled);
+  expect(client.getSnapshot().phase).toBe('anonymous');
+});

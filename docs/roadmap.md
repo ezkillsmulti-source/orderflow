@@ -69,7 +69,14 @@ Implemented backend increment: one optional primary image, validated ADMIN
 upload/replacement/removal on active products, authenticated variant reads for both
 roles including archives, and bounded recoverable cleanup. The lifecycle and limits
 are recorded in the catalog contract and storage ADR. Browser thumbnail/detail display and accessible image fallbacks are implemented.
-Upload/preview and replacement/removal controls remain pending; milestone 4A is not complete. A gallery is deferred.
+Active ADMIN details now support local preview, explicit upload/replacement, and
+accessible confirmed removal. OPERATOR and archives remain read-only. Milestone 4A's
+one-primary-image scope is implemented and verified locally: 58 web tests and 52
+real-API desktop/mobile browser cases pass, including all existing catalog flows.
+Image load/absence/failure, request protection, uncertain outcomes, preview cleanup,
+keyboard/focus, contrast and responsive layout were checked. See development and UI
+design verification records. Production hosting, object storage and a gallery remain
+deferred; this completion does not imply deployment or full accessibility compliance.
 
 ## 4B/4C. Accountable inventory
 

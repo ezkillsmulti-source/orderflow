@@ -34,7 +34,7 @@ page allows the requested move. This preserves keyboard position without allowin
 extra requests or exceeding bounds. No row range is shown while results are unavailable.
 Detail and form pages retain hash routes and browser history rather than introducing
 drawers or nested dialogs. Full pages leave room for long product names, maximum prices, and validation feedback on mobile.
-Only archival uses a native modal confirmation.
+Archival and image removal use native modal confirmations; only one can open at a time.
 
 Details put the product name and permitted actions above a text status/context row,
 then group SKU/description and the exact ARS price in separate panels. OPERATOR and
@@ -163,5 +163,35 @@ frame, with contain sizing to preserve the actual image aspect ratio. A muted ic
 and explicit accessible labels distinguish No image from Image unavailable. Loading
 reserves the same frame. Images use descriptive alt text and authenticated,
 application-relative URLs; malformed/foreign descriptor URLs are rejected before
-rendering. Image management follows in a separate increment. Existing burgundy
+rendering. Administrator image management is described below. Existing burgundy
 colors, focus treatment, table scroll region, and hash navigation are retained.
+
+## Administrator image management
+
+Active ADMIN details place the current image beside a labeled file chooser and
+limits, stacking these on mobile. Selection creates a separate, smaller local
+preview; Upload selected image is the explicit confirmation. Client MIME/size
+checks are usability aids (unknown/octet-stream types reach server validation),
+not a substitute for content/dimension/animation checks. Recoverable errors keep
+selection; field errors describe the input and focus it after the request. A failed
+local preview has explicit text and does not falsely claim server validation.
+
+Object URLs are view-owned and revoked on replacement, discard, navigation, logout,
+role/session boundaries, and confirmed mutation. Files/URLs/tokens are never stored
+persistently. Uncertain upload outcomes disable image mutations and selection until
+Check image status performs a deliberate read. There is no mutation replay.
+
+Removal uses a native modal with initial focus on Keep image, a bounded action-button
+Tab loop, Escape cancellation and opener restoration. An uncertain removal or archival conflict changes
+the safe action to Check image status and disables repeated removal. Confirmed
+mutations refresh the server record and focus the product heading. Archived products
+and OPERATOR keep the complete image display without management controls. No nested
+dialog, gallery, remote URL import, crop editor, or extra navigation is added.
+
+Image frontend verification passed locally: 58 web tests and all 52 real-API browser
+cases (20 image cases) at desktop/mobile viewports. Actual image decoding, keyboard
+modal actions/restoration, upload error focus, computed helper/action/error text and
+focus contrast, and 320px reflow were asserted. Private synthetic captures of the
+catalog, details, fallbacks, selection, validation and removal modal were inspected
+at 1280x900 and 390x844. Existing burgundy/semantic tokens are reused. This is not a
+full accessibility audit or proof for untested browser engines/devices.
