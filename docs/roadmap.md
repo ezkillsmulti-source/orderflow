@@ -13,9 +13,9 @@ Prisma schema and initial constrained Product migration, local PostgreSQL Compos
 unit/HTTP and isolated real-database integration tests, and a CI workflow.
 
 The [development guide](development.md) defines setup and checks and includes a
-dated local verification record with remaining environment limitations.
-Hosted CI execution and Docker Compose startup must be verified in environments
-where those services are available; a workflow file alone is not proof of success.
+dated verification record. Isolated Docker Compose startup, volume persistence
+across container recreation, cleanup, and a hosted backend CI run have passed;
+the guide links the specific CI run, and PR checks show results for later commits.
 No frontend, authentication, business endpoints, Redis, or worker is included.
 
 ## 2. Authenticated product catalog

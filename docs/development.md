@@ -44,6 +44,35 @@ POSTGRES_* initialization settings only apply to a fresh volume. Changing `.env`
 does not change an existing database's credentials. Update the database role
 explicitly or use a separate fresh Compose project/volume if you need new data.
 
+### Isolated Compose persistence verification
+
+Use a unique project name with `docker compose -p`, a temporary `--env-file`
+containing fresh POSTGRES_* values, and the repository's `compose.yaml`. To avoid
+the normal port mapping, add a temporary override file with `-f` after the base
+file (the `!override` tag requires Compose 2.24.4 or later):
+
+```yaml
+services:
+  postgres:
+    ports: !override
+      - '127.0.0.1::5432'
+```
+
+Keep the same project name, environment file, and Compose files for every command.
+Start with `up -d --wait postgres`, discover the assigned port with
+`port postgres 5432`, and export DATABASE_URL and TEST_DATABASE_ADMIN_URL for that
+isolated server before running migrations and integration tests. Use the temporary
+application database for DATABASE_URL and `postgres` for TEST_DATABASE_ADMIN_URL.
+Shell variables override any root `.env` values; leave the local `.env` untouched.
+
+Apply `pnpm db:migrate` twice, insert a disposable Product row, and verify the row
+and migration history after `stop postgres` / `up -d --wait postgres`, then after
+`down` / `up -d --wait postgres`. Confirm that `down` retains the named volume and
+that the recreated container has a different ID. Finally, run
+`down -v --remove-orphans` **only for this disposable project**, check that its
+containers, network, and volume are gone, and remove temporary configuration.
+Clean up the isolated project even if a verification step fails.
+
 ## Migrations
 
 After installation, run `pnpm db:generate`, then `pnpm db:migrate`. The latter runs
@@ -119,7 +148,7 @@ and four integration tests passed locally. Integration tests used an actual
 PostgreSQL 17.6 server from temporary binaries because Docker was unavailable.
 The root migration and development commands and compiled startup/SIGTERM shutdown
 were also exercised. Docker Compose startup/volume persistence and hosted GitHub
-Actions execution were not verified in that environment.
+Actions execution were not verified during that run.
 
 The foundation review reran frozen installation, formatting, lint, typecheck, build,
 Prisma validation, 22 unit/HTTP tests, and five real PostgreSQL integration tests.
@@ -127,5 +156,24 @@ A controlled failure injected into a generated test artifact after database
 creation also verified fixture cleanup; that intentionally failing run left no
 test database behind. The review fixed shared readiness deadlines/retained
 observers and separated Prisma URL validation from the API port. Docker Compose
-startup and volume persistence remain pending because Docker is unavailable;
-no hosted GitHub Actions run has been claimed.
+startup and volume persistence were still pending during that review because
+Docker was unavailable; hosted GitHub Actions had not yet been verified.
+
+The follow-up on 2026-10-19 verified Docker Compose startup and persistence using
+Docker Engine 29.9.1, Compose 5.6.0, and `postgres:17.6-bookworm`. A unique project,
+fresh temporary credentials, and a dynamically assigned loopback port isolated the
+run from local development configuration. With Node.js 24.22.0 and pnpm 10.34.7,
+frozen installation, client generation, two migration deployments, formatting,
+lint, typecheck, 22 unit/HTTP tests, five integration tests, and build passed.
+The integration suite left no `orderflow_test_*` database behind.
+
+A disposable Product row retained the exact `9007199254740991` price and the
+completed migration count remained one after both stop/start and down/up.
+The named volume survived `down`, and the replacement container had a different
+ID. Final project-scoped `down -v --remove-orphans` removed the test containers,
+network, and volume; label-filtered checks confirmed none remained. Temporary
+configuration was removed and local `.env` was untouched.
+
+Hosted [CI run 39298019283](https://github.com/ezkillsmulti-source/orderflow/actions/runs/39298019283)
+also completed successfully for foundation commit `e42db66`. This records that
+specific run; consult the PR checks for results on subsequent commits.
