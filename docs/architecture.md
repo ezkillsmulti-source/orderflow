@@ -17,7 +17,10 @@ repository layer or shared workspace package.
   routes. It manages bounded expired-session/limiter cleanup and closes its separate,
   bounded pool on shutdown. Configuration and lifetimes are in [ADR 0004](decisions/0004-session-authentication.md).
 - `AuthModule` installs session loading before origin/CSRF/shared-admission checks,
-  exposes CSRF/login/me/logout, and registers a default authentication guard.
+  exposes CSRF/login/me/logout, and registers a default authentication guard followed by a role guard.
+  Routes can declare explicit allowed roles through `@Roles`; the role guard uses
+  only the freshly authenticated identity and runs before controllers or services.
+  Routes without role metadata retain their existing authentication policy.
   Protected routes read current User status and role. A fixed-response exception
   filter prevents parser and infrastructure details from echoing input or being logged.
 
@@ -63,7 +66,8 @@ PostgreSQL counters for source/account login limits and global admission. Automa
 table creation and unbounded library cleanup are disabled; migrations create both
 tables. Store/counter failures return sanitized 503 with no in-memory fallback.
 
-There are no product endpoints, business authorization, inventory, orders, frontend,
+Role authorization is implemented and tested through test-only routes; product
+endpoints and order ownership checks remain pending. There is no inventory, orders, frontend,
 Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
 for runtime, schema, and serialization choices.
