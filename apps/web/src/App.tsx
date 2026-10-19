@@ -46,7 +46,7 @@ function Login() {
   return (
     <div className="login-layout">
       <section className="login-intro">
-        <p className="eyebrow">A clearer working day</p>
+        <p className="eyebrow">Your product workspace</p>
         <h1>
           Your catalog.
           <br />
@@ -94,6 +94,9 @@ function Login() {
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <p className="login-footer">
+          For your team. For the details that matter.
+        </p>
       </section>
     </div>
   );
@@ -138,27 +141,50 @@ export function App() {
         Skip to content
       </a>
       <header className="topbar">
-        <a className="brand" href="/">
-          Order<span>Flow</span>
-        </a>
-        {state.user && (
-          <div className="row">
-            <div className="identity">
-              {state.user.email}
-              <span className="role">
-                {state.user.role === 'ADMIN' ? 'Administrator' : 'Operator'}
-              </span>
+        <div className="topbar-inner">
+          <a
+            className="brand"
+            href={state.user ? '#products' : '/'}
+            aria-label="OrderFlow home"
+          >
+            <span className="brand-mark" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z M4 7.5l8 4.5 8-4.5 M12 12v9 M8 5.25l8 4.5" />
+              </svg>
+            </span>
+            <span>OrderFlow</span>
+          </a>
+          {state.user && (
+            <nav className="app-nav" aria-label="Application">
+              <a href="#products" aria-current="page">
+                Products
+              </a>
+            </nav>
+          )}
+          {state.user && (
+            <div className="account-menu">
+              <div className="identity">
+                {state.user.email}
+                <span className="role">
+                  {state.user.role === 'ADMIN' ? 'Administrator' : 'Operator'}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  void logout();
+                }}
+                disabled={loggingOut}
+              >
+                {loggingOut ? 'Signing out…' : 'Sign out'}
+              </button>
             </div>
-            <button
-              onClick={() => {
-                void logout();
-              }}
-              disabled={loggingOut}
-            >
-              {loggingOut ? 'Signing out…' : 'Sign out'}
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
       <main id="main" className="page" tabIndex={-1}>
         <ErrorNotice error={error} />

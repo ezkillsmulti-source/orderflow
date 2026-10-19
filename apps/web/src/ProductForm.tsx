@@ -10,6 +10,12 @@ import {
   type FieldErrors,
 } from './product-form';
 import { useProduct } from './use-product';
+import {
+  BackLink,
+  LoadingState,
+  PageHeader,
+  WorkspaceState,
+} from './workspace';
 
 export function EditProduct({ id }: { id: string }) {
   const [revision, setRevision] = useState(0);
@@ -20,24 +26,37 @@ export function EditProduct({ id }: { id: string }) {
   }, [state.data?.active]);
   if (state.error)
     return (
-      <section className="card stack">
+      <WorkspaceState
+        title="Product unavailable"
+        headingLevel={1}
+        actions={
+          <button onClick={() => setRevision((value) => value + 1)}>
+            Try again
+          </button>
+        }
+      >
         <ErrorNotice error={state.error} />
-        <button onClick={() => setRevision((value) => value + 1)}>
-          Try again
-        </button>
         <a href="#products">Back to products</a>
-      </section>
+      </WorkspaceState>
     );
-  if (!state.data) return <p role="status">Loading product…</p>;
+  if (!state.data) return <LoadingState>Loading product…</LoadingState>;
   if (!state.data.active)
     return (
-      <section className="card">
-        <h1 ref={heading} tabIndex={-1}>
-          Product archived
-        </h1>
-        <p>This product can be read, but it cannot be edited or reactivated.</p>
-        <a href={`#products/${id}`}>View product</a>
-      </section>
+      <>
+        <PageHeader title="Product archived" headingRef={heading} />
+        <WorkspaceState
+          title="Available for reference"
+          actions={
+            <a className="button" href={`#products/${id}`}>
+              View product
+            </a>
+          }
+        >
+          <p>
+            This product can be read, but it cannot be edited or reactivated.
+          </p>
+        </WorkspaceState>
+      </>
     );
   return <ProductForm original={state.data} />;
 }
@@ -55,6 +74,16 @@ export function ProductForm({ original }: { original?: Product }) {
   const form = useRef<HTMLFormElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const alive = useRef(true);
+  const focusError = useRef(false);
+  useEffect(() => {
+    if (!focusError.current) return;
+    focusError.current = false;
+    const name = (['name', 'sku', 'description', 'price'] as const).find(
+      (key) => errors[key],
+    );
+    if (name)
+      form.current?.querySelector<HTMLElement>(`[name="${name}"]`)?.focus();
+  }, [errors]);
   useEffect(() => {
     heading.current?.focus();
     alive.current = true;
@@ -73,8 +102,7 @@ export function ProductForm({ original }: { original?: Product }) {
     setErrors(checked.errors);
     setError(null);
     if (Object.keys(checked.errors).length) {
-      const field = Object.keys(checked.errors)[0];
-      form.current?.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
+      focusError.current = true;
       return;
     }
     const body = original
@@ -113,6 +141,7 @@ export function ProductForm({ original }: { original?: Product }) {
       name,
       value: fields[name],
       disabled: busy,
+      required: name !== 'description',
       'aria-invalid': Boolean(errors[name]),
       'aria-describedby':
         [help ? `${name}-help` : '', errors[name] ? `${name}-error` : '']
@@ -157,43 +186,65 @@ export function ProductForm({ original }: { original?: Product }) {
   }
   return (
     <>
-      <a href={back}>← Back to {original ? 'product' : 'products'}</a>
-      <h1 ref={heading} tabIndex={-1} style={{ marginTop: '1.5rem' }}>
-        {original ? 'Edit product' : 'Create product'}
-      </h1>
-      <p className="muted">
-        {original
-          ? 'Update the details your team relies on.'
-          : 'Add a product to your business catalog.'}
-      </p>
+      <BackLink href={back}>
+        Back to {original ? 'product' : 'products'}
+      </BackLink>
+      <PageHeader
+        title={original ? 'Edit product' : 'Create product'}
+        headingRef={heading}
+        description={
+          original
+            ? 'Keep product details clear and up to date.'
+            : 'Add a product to your team’s catalog.'
+        }
+      />
       <form
         ref={form}
         noValidate
-        className="card form-card stack"
+        className="product-form stack"
         onSubmit={(event) => {
           void submit(event);
         }}
         aria-busy={busy}
       >
-        <div className="form-grid">
-          {field('name', 'Product name', '1–200 Unicode characters.')}
-          {field(
-            'sku',
-            'SKU',
-            'Case-sensitive. 1–64 ASCII characters; archived SKUs stay reserved.',
-          )}
-          {field(
-            'price',
-            'Price (ARS)',
-            'Use a decimal point, e.g. 1250.50. No thousands separators. Zero is allowed.',
-          )}
-          {field(
-            'description',
-            'Description (optional)',
-            'Up to 2,000 Unicode characters.',
-            true,
-          )}
-        </div>
+        <p className="help">All fields are required except description.</p>
+        {Object.values(errors).some(Boolean) && (
+          <p className="error" role="alert">
+            Review the highlighted fields before saving.
+          </p>
+        )}
+        <fieldset className="card form-section">
+          <legend>Product identity</legend>
+          <div className="form-section-body form-grid">
+            {field(
+              'name',
+              'Product name',
+              'Use a clear name, up to 200 characters.',
+            )}
+            {field(
+              'sku',
+              'SKU',
+              '1–64 letters, numbers, dots, underscores or hyphens. Start with a letter or number. Case-sensitive; archived SKUs stay reserved.',
+            )}
+            {field(
+              'description',
+              'Description (optional)',
+              'Add useful context for your team, up to 2,000 characters.',
+              true,
+            )}
+          </div>
+        </fieldset>
+        <fieldset className="card form-section">
+          <legend>Pricing</legend>
+          <div className="form-section-body pricing-fields">
+            {field(
+              'price',
+              'Price (ARS)',
+              'Use a decimal point and up to two decimal places, e.g. 1250.50. No thousands separators. Zero is allowed.',
+            )}
+            <p className="help">Argentine pesos · Maximum 90071992547409.91</p>
+          </div>
+        </fieldset>
         <ErrorNotice error={error} />
         {error && (
           <p className="help">
@@ -202,23 +253,21 @@ export function ProductForm({ original }: { original?: Product }) {
             submission.
           </p>
         )}
-        {original && (
-          <p className="help">
-            Concurrent edits use the last submitted value for each changed
-            field.
+        {unchanged && (
+          <p className="help" role="status">
+            No changes to save.
           </p>
         )}
-        <div className="row actions">
+        <div className="form-actions">
+          <a className="button" href={back}>
+            Cancel
+          </a>
           <button
             className="primary"
             disabled={busy || blocked || Boolean(unchanged)}
           >
             {busy ? 'Saving…' : original ? 'Save changes' : 'Create product'}
           </button>
-          <a className="button" href={back}>
-            Cancel
-          </a>
-          {unchanged && <span className="help">No changes to save.</span>}
         </div>
       </form>
     </>

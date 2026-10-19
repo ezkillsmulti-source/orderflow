@@ -32,16 +32,21 @@ test('operators browse active and archived products with exact prices and bounde
   await expect(page.getByText('Showing 1–10', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByText('Showing 11–11', { exact: true })).toBeVisible();
-  await page.getByLabel('Product status').selectOption('archived');
-  await page.getByRole('link', { name: 'Archived tea' }).click();
+  await page.getByRole('radio', { name: 'Archived', exact: true }).check();
+  await page.getByRole('link', { name: 'Archived tea', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Archived tea', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('ARS 0,00', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to products' }).click();
-  await expect(page.getByLabel('Product status')).toHaveValue('archived');
+  await expect(
+    page.getByRole('radio', { name: 'Archived', exact: true }),
+  ).toBeChecked();
   await page.goto('/#products/00000000-0000-0000-0000-000000000000');
   await expect(page.getByRole('alert')).toContainText('could not be found');
+  await expect(
+    page.getByRole('heading', { name: 'Product not found', level: 1 }),
+  ).toBeFocused();
 });
 
 test('distinguishes empty, unavailable and forbidden reads and handles session invalidation', async ({
@@ -59,12 +64,18 @@ test('distinguishes empty, unavailable and forbidden reads and handles session i
   await expect(page.getByRole('alert')).toContainText(
     'temporarily unavailable',
   );
+  await expect(
+    page.getByRole('heading', { name: 'Products unavailable' }),
+  ).toBeVisible();
   await page.unroute('**/api/products?*');
   await page.route('**/api/products?*', (route) =>
     route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }),
   );
   await page.getByRole('button', { name: 'Refresh products' }).click();
   await expect(page.getByRole('alert')).toContainText('forbidden');
+  await expect(
+    page.getByRole('heading', { name: 'Access restricted' }),
+  ).toBeVisible();
   await page.unroute('**/api/products?*');
   await database.query('UPDATE "User" SET active=false WHERE email=$1', [
     process.env.DEV_ADMIN_EMAIL,

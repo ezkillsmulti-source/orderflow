@@ -654,6 +654,11 @@ For example the API maximum "9007199254740991" displays as
 centavos; no floating-point monetary conversion occurs. Loading, empty, forbidden,
 unavailable, and missing-product states are distinct. Product text is rendered
 through React text nodes, never HTML. Read-only browser flows cover both viewports.
+The [workspace design guide](ui-design.md) describes the warm burgundy tokens,
+page hierarchy, grouped forms, and responsive/accessibility decisions. Status uses
+always-visible Active/Archived/All products radios; query changes keep control focus.
+Use View on any record and Edit on active ADMIN records. A horizontal table region
+is named Product catalog, has keyboard focus, and does not widen the page.
 
 The browsing increment passed 14 web unit/proxy tests and eight real-API browser
 checks across desktop/mobile, plus formatting, lint, typecheck, and the web build.
@@ -708,7 +713,7 @@ horizontally with a visible hint. Accessibility has not been audited for full co
    The detail view displays `ARS 1.250,50`. Edit only the price to `0`; confirm it
    displays `ARS 0,00`. Archive the product, cancelling once with Escape before
    confirming. Archived details have no edit controls.
-5. Select Archived products in the list; open its detail. Reload to verify session
+5. Select Archived in Product status; open its detail. Reload to verify session
    restoration. Sign out; sign in as the operator and read the same archive.
    Creation/edit/archive controls are absent. Sign out again.
 
@@ -767,3 +772,78 @@ checks now pass across both viewports, covering the administrator workflow and
 session restoration/logout failures. Root lint, web typecheck, and web build also
 passed. Workspace and catalog documentation no longer describe implemented web
 screens/browser tests as pending. The complete local backend suite was not repeated.
+
+### Product workspace redesign verification — 2026-10-19
+
+With Node 24.22.0 and pnpm 10.34.7 selected from the persistent local toolchain,
+the redesign passed:
+
+- `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`.
+- `pnpm --filter @orderflow/web test`: 43 tests, including the real HTTP development
+  proxy, session/API behavior, exact monetary conversion, form normalization, and
+  design-token contrast checks. The proxy test needs permission to bind loopback;
+  its initial sandbox EPERM was resolved by running with execution approval.
+- `pnpm build`: both API compilation and the frontend TypeScript/Vite build.
+- `pnpm test:browser`: all 30 Chromium checks with the real API, ephemeral users,
+  and random migrated databases on a separate PostgreSQL 17.6 container. Both roles,
+  read/write denials, session restoration/invalidation, CSRF/origin rejection,
+  changed-field PATCH, recoverable drafts, and uncertain outcomes remain covered.
+
+Additional browser checks exercise native status-radio keyboard navigation without
+losing focus, purposeful empty states, explicit loading synchronization, error
+associations and first-invalid-field focus, modal Tab/Shift+Tab wrapping and Escape
+restoration, named table scrolling, and no page-level horizontal overflow. They
+measure computed foreground/background contrast and control/focus boundaries.
+Long records use a 200-character name, 64-character SKU, 2,000-character description,
+and the maximum exact price. Reduced-motion preferences are exercised in the narrow
+form/detail workflow. No arbitrary sleeps were added.
+
+Actual synthetic screenshots of login, catalog, detail, create/edit, errors, and
+archive confirmation were inspected at 1280x900 and 390x844, plus 320px login,
+long catalog/detail/edit, and confirmation cases. Visual iteration aligned fields
+with different helper lengths and placed the price before long record information
+on mobile. Private captures stay outside the repository and public artifacts.
+The [design guide](ui-design.md) records measured contrast and accessibility limits.
+
+The browser runner removed its API/Vite children and random databases, including
+after failed development assertions; a final query confirmed zero generated databases.
+Local `.env`, existing database resources/data, and the initial stopped-service state
+were preserved. No backend behavior, migration, API contract, dependency, or CI check
+changed, so the unchanged backend integration suite was not rerun for this milestone.
+Inventory, orders, production hosting, cross-browser/device review, and manual
+assistive-technology evaluation remain pending.
+
+To review locally, use the existing configured `.env` and provisioned accounts;
+do not overwrite configuration or rerun provisioning to reset accounts. From the
+root with the pinned toolchain selected:
+
+```bash
+docker compose up -d --wait postgres
+pnpm db:generate
+pnpm db:migrate
+pnpm dev
+```
+
+In another terminal with the same toolchain, run `pnpm dev:web`, then open
+http://127.0.0.1:5173. See [Manual web walkthrough](#manual-web-walkthrough) for both
+roles. Use Ctrl-C in each terminal to stop the API/frontend; use
+`docker compose stop postgres` to stop the local database without removing its volume.
+For a fresh configuration only, follow [Development account provisioning](#development-account-provisioning)
+explicitly; existing account credentials and roles are never silently reset.
+
+### Product workspace publication review — 2026-10-19
+
+Review reproduced lost keyboard focus in pagination: results loading removed the
+Previous/Next buttons. They now stay mounted, expose guarded aria-disabled states,
+and retain focus through loading, first/last-page boundaries, and read failures.
+The regression gates the real API request, checks returned page content before the
+next action, and verifies inactive keyboard activation sends no extra reads.
+
+Focused verification passed: formatting, lint, web TypeScript/Vite build, two token
+contrast tests, and eight real-API Chromium browser checks across desktop/mobile
+(pagination regression, bounded browsing, keyboard filters, and explicit loading).
+Review used a new PostgreSQL container with random migrated databases, a random API
+port, and Vite on 127.0.0.1:5183; it did not reuse or modify the manual preview.
+The complete local suite was not repeated. Existing hosted CI retains the complete
+backend/frontend and browser checks. User feedback is recorded separately in the
+[design guide](ui-design.md#review-feedback), not counted as an additional test run.

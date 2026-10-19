@@ -1,4 +1,9 @@
 import { test, expect, signIn, visual } from './fixture';
+import {
+  boundaryContrast,
+  noPageOverflow,
+  textContrast,
+} from './design-checks';
 
 test('login, invalid credentials, reload restoration, cookie privacy and logout', async ({
   page,
@@ -8,6 +13,18 @@ test('login, invalid credentials, reload restoration, cookie privacy and logout'
   await expect(
     page.getByRole('heading', { name: 'Sign in to OrderFlow' }),
   ).toBeVisible();
+  await noPageOverflow(page);
+  await textContrast(
+    page.getByRole('heading', { name: 'Sign in to OrderFlow' }),
+  );
+  const email = page.getByLabel('Email address');
+  await email.focus();
+  await boundaryContrast(email, 'borderTopColor');
+  await boundaryContrast(email, 'outlineColor');
+  const submit = page.getByRole('button', { name: 'Sign in', exact: true });
+  await textContrast(submit);
+  await submit.hover();
+  await textContrast(submit);
   await visual(page, 'login', info.project.name);
   await page.getByLabel('Email address').fill(process.env.DEV_ADMIN_EMAIL!);
   await page
@@ -17,7 +34,22 @@ test('login, invalid credentials, reload restoration, cookie privacy and logout'
   await expect(page.getByRole('alert')).toHaveText(
     'Invalid email or password.',
   );
+  await textContrast(page.getByRole('alert'));
+  await visual(page, 'login-error', info.project.name);
+  const viewport = page.viewportSize()!;
+  await page.setViewportSize({ width: 320, height: 800 });
+  await noPageOverflow(page);
+  await visual(page, 'login-320', info.project.name);
+  await page.setViewportSize(viewport);
   await signIn(page);
+  const navigation = page.getByRole('navigation', {
+    name: 'Application',
+    exact: true,
+  });
+  await expect(navigation.getByRole('link')).toHaveCount(1);
+  await expect(
+    navigation.getByRole('link', { name: 'Products', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
   await page.getByRole('link', { name: 'Skip to content' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();

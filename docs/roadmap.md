@@ -42,7 +42,28 @@ production cookie requirements, role denials, unique SKUs, archiving, numeric
 bounds, and price validation. Lists use bounded, deterministic pagination. A
 browser test demonstrates the authenticated catalog workflow.
 
-## 3. Accountable inventory
+## 3. Product workspace redesign
+
+Scope change: improve the existing authenticated product workspace before adding
+inventory. Inventory and every subsequent milestone move forward by one number;
+their business rules and acceptance criteria are retained unchanged.
+
+Implemented: a cohesive warm, light interface with restrained burgundy accents,
+shared design tokens, working navigation, catalog hierarchy, read-only operator
+workflows, grouped forms, product details, and archive confirmation. It uses existing
+API data and contracts; no inventory, orders, new backend behavior, or placeholder metrics.
+
+Completion: ADMIN and OPERATOR workflows pass against the real API and an isolated
+PostgreSQL database. Login, list, detail, create/edit, and archive confirmation are
+reviewed on desktop and narrow mobile screens. Keyboard/focus, errors, long content,
+exact maximum prices, page reflow, and actual text/non-text contrast are checked.
+Verification passed locally: 43 web tests, 30 real-API browser checks, formatting,
+lint, typecheck, and both builds. Rendered screens were inspected at 1280x900 and
+390x844, with additional 320px long-content/reflow and contrast checks. Automated
+checks do not establish full accessibility compliance. See [UI design](ui-design.md)
+and the [verification record](development.md#product-workspace-redesign-verification--2026-10-19).
+
+## 4. Accountable inventory
 
 Deliver available-stock visibility and administrator adjustments using signed
 integer deltas, non-empty reasons, and authenticated actors. Select the
@@ -53,7 +74,7 @@ and actor through the agreed interface. Backend tests verify authorization,
 attribution, atomic records and stock changes, numeric bounds, and rejection of
 changes that would reduce on-hand stock below reserved stock.
 
-## 4. Orders and reservations — first-release behavior
+## 5. Orders and reservations — first-release behavior
 
 Deliver orders with distinct active products, immutable item snapshots and totals,
 atomic stock reservation, and the `RESERVED`/`CANCELLED` lifecycle. Implement
@@ -69,7 +90,7 @@ operator ownership restrictions and pagination metadata. Browser tests demonstra
 the order creation and cancellation flow. Documentation explains the initial
 lifecycle and its limitations; no exactly-once event delivery is promised.
 
-## 5. Operable first release
+## 6. Operable first release
 
 Package the first-release behavior using Docker Compose and Nginx, and document
 configuration, production session/cookie and proxy settings, migrations, logs,
@@ -80,7 +101,7 @@ environment; smoke checks pass, a backup is restored successfully, and operation
 limitations and actual verification evidence are recorded. Publish a deployment
 URL only if a deployment exists. CI runs the relevant automated checks.
 
-## 6. Reservation expiration and background processing
+## 7. Reservation expiration and background processing
 
 Agree an expiration policy, then introduce Redis, BullMQ, and a worker for the
 concrete expiration workflow while retaining the modular monolith.
@@ -90,7 +111,7 @@ and races with cancellation have idempotent reservation-release effects. Tests
 demonstrate this behavior, and worker failure/recovery procedures are documented
 and exercised. Expiration states and policy remain unresolved until this milestone.
 
-## 7. Payment integration
+## 8. Payment integration
 
 Choose a provider and define payment states and their relationship to reservation,
 expiration, cancellation, and fulfillment before adding an integration.
@@ -101,7 +122,7 @@ and relevant payment/order races. Provider selection, payment states, and their
 business effects remain unresolved. No live-money capability is implied by a
 sandbox demo.
 
-## 8. Multi-tenant isolation
+## 9. Multi-tenant isolation
 
 Define tenant ownership, membership, and access rules, then implement isolation.
 These boundaries remain unresolved until this milestone.
