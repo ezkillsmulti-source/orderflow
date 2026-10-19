@@ -1,13 +1,14 @@
 # OrderFlow
 
-OrderFlow is a planned application for small businesses to manage products,
-inventory, and orders. The backend foundation is implemented: a NestJS API,
-PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
-and a GitHub Actions workflow. User persistence with normalized unique emails and
-ADMIN/OPERATOR roles, Argon2id password hashing, and explicit development account
-provisioning are implemented. Session login/identity/logout, PostgreSQL-backed
-sessions, CSRF protection, and shared login throttling are implemented. Product creation, listing, detail reads, and current-role authorization are
-implemented. Product editing/archiving and the frontend remain planned.
+OrderFlow is a planned application for small businesses to manage products, inventory,
+and orders. The backend foundation is implemented: a NestJS API, PostgreSQL/Prisma
+schema and initial migration, health routes, automated tests, and a GitHub Actions
+workflow. User persistence with normalized unique emails and ADMIN/OPERATOR roles,
+Argon2id password hashing, and explicit development account provisioning are
+implemented. Session login/identity/logout, PostgreSQL-backed sessions, CSRF protection,
+and shared login throttling are implemented. The backend catalog implements product
+creation, listing, detail reads, editing, and archiving with current-role authorization.
+The frontend remains planned.
 
 ## Local setup
 
@@ -69,11 +70,11 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 ## Scope and documents
 
 There is no frontend, public registration, password recovery, production account
-provisioning, product editing/archiving, inventory, ordering, Redis, worker, or deployment yet.
-Catalog endpoints enforce ADMIN writes and ADMIN/OPERATOR reads, including archived
-products. Order ownership authorization remains pending. See the
-[catalog contract](docs/product-catalog.md). The planned stack adds React/Vite and browser testing when the
-frontend is introduced, and background processing only when needed.
+provisioning, inventory, ordering, Redis, worker, or deployment yet. Catalog endpoints
+enforce ADMIN writes and ADMIN/OPERATOR reads, including archived products. Order
+ownership authorization remains pending. See the [catalog
+contract](docs/product-catalog.md). The planned stack adds React/Vite and browser
+testing when the frontend is introduced, and background processing only when needed.
 
 - [Product scope and business rules](docs/product-scope.md)
 - [Roadmap and current progress](docs/roadmap.md)

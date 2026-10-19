@@ -41,11 +41,11 @@ settings are for the foundation; assess capacity when business requests exist.
 
 ## Persistence boundary
 
-The existing `Product` table now supports catalog creation and reads. It has UUID identifiers,
-case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices in ARS
-minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
-and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps.
-The SQL migration adds the price check constraint that Prisma schema syntax cannot
+The existing `Product` table supports the implemented backend catalog. It has UUID
+identifiers, case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices
+in ARS minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
+and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps. The
+SQL migration adds the price check constraint that Prisma schema syntax cannot
 represent. Future migrations must preserve it.
 
 The User table adds UUID identities, normalized unique emails, password hashes,
@@ -79,9 +79,15 @@ conversion and serialized explicitly. Catalog error types permit fixed conflict
 and availability messages without changing authentication contracts. Unrecognized
 failures remain sanitized 500.
 
-Creation, listing, and detail reads are implemented; editing, archiving, and order
-ownership checks remain pending. See the [catalog contract](product-catalog.md).
-There is no inventory, orders, frontend,
-Redis, or worker. Future business features remain governed by the
-[product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
-for runtime, schema, and serialization choices.
+ProductsService edits with an atomic id/active=true predicate and returned row, and
+archives only active rows. A repeated archive reads the existing row without updating
+timestamps. Submitted fields use last-write-wins; optimistic locking is not implemented.
+These single-row writes need no explicit multi-statement transaction. No prior migration
+changes or new migration are required.
+
+The backend catalog and role authorization are implemented. Order ownership checks
+remain pending. See the [catalog contract](product-catalog.md). There is no inventory,
+orders, frontend, Redis, or worker. Future business features remain governed by the
+[product scope](product-scope.md). See the
+[decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
+choices.

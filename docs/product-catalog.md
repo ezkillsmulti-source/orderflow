@@ -1,17 +1,17 @@
 # Backend product catalog
 
-Creation, listing, and detail reads are implemented. Editing and archiving are
-approved policies pending the next catalog increment. Inventory, orders, frontend,
-and browser tests remain pending. The catalog does not expose or persist stock.
+Creation, listing, detail reads, editing, and archiving are implemented. Inventory,
+orders, frontend, and browser tests remain pending. The catalog does not expose or
+persist stock.
 
 ## Authentication and permissions
 
-Every catalog route requires an authenticated active user. The authentication
-guard reloads current role/status from PostgreSQL; the following role guard checks
-permissions before controller validation or product lookup. ADMIN can create and
-read products. OPERATOR can read products, including archived ones. Approved
-editing and archiving operations are ADMIN-only. Roles cannot come from clients
-or session snapshots. This first release supports one business, not tenants.
+Every catalog route requires an authenticated active user. The authentication guard
+reloads current role/status from PostgreSQL; the following role guard checks permissions
+before controller validation or product lookup. ADMIN can create, read, edit, and
+archive products. OPERATOR can read products, including archived ones. Roles cannot come
+from clients or session snapshots. This first release supports one business, not
+tenants.
 
 Unsafe requests require the existing session cookie, exact trusted Origin, and
 current X-CSRF-Token. Origin/CSRF checks run before authentication and can return
@@ -20,13 +20,13 @@ health exclusions remain unchanged. Responses use Cache-Control: no-store.
 
 ## Endpoint contract
 
-| Endpoint                   | Success                              | Status                 |
-| -------------------------- | ------------------------------------ | ---------------------- |
-| GET /products              | 200 list envelope                    | Implemented            |
-| GET /products/:id          | 200 product                          | Implemented            |
-| POST /products             | 201 product; Location: /products/:id | Implemented            |
-| PATCH /products/:id        | 200 product                          | Planned next increment |
-| POST /products/:id/archive | 200 archived product                 | Planned next increment |
+| Endpoint                   | Success                              | Status      |
+| -------------------------- | ------------------------------------ | ----------- |
+| GET /products              | 200 list envelope                    | Implemented |
+| GET /products/:id          | 200 product                          | Implemented |
+| POST /products             | 201 product; Location: /products/:id | Implemented |
+| PATCH /products/:id        | 200 product                          | Implemented |
+| POST /products/:id/archive | 200 archived product                 | Implemented |
 
 Create accepts sku, name, priceMinor, and optional description. Required fields
 must be present. Unknown fields are rejected, including id, active, and timestamps.
@@ -97,34 +97,38 @@ Pagination is deterministic for unchanged data, not a consistent snapshot across
 requests. Concurrent creation/archiving can change page membership. Offset is
 bounded at 10,000; deeper navigation would require a separate cursor decision.
 
-## Approved editing and archival policy
+## Editing and archival policy
 
-PATCH accepts a non-empty subset of sku, name, description, and priceMinor.
-Omitted fields remain unchanged; description=null clears it. Archived products
-cannot be edited or reactivated. Edits must atomically require active=true.
-Simultaneous edits use last-write-wins for submitted fields; optimistic locking
-is not implemented. A SKU edit releases its previous value.
+PATCH accepts a non-empty subset of sku, name, description, and priceMinor. Omitted
+fields remain unchanged; description=null clears it. Archived products cannot be edited
+or reactivated. Edits atomically require active=true in the SQL write predicate.
+PostgreSQL rechecks that predicate after waiting for concurrent row writers. A failed
+conditional edit returns 404 for a missing ID or 409 for an archived product.
+Simultaneous edits use last-write-wins for submitted fields; optimistic locking is not
+implemented. A SKU edit releases its previous value.
 
-Archive changes active to false and never deletes a row. Repeating archive
-returns the existing representation without changing updatedAt. No reactivation
-or physical deletion endpoint is planned in this task. Future orders must reject
-archived products and preserve immutable snapshots; orders are not implemented.
+Archive accepts an omitted body or an empty JSON object. Unknown fields and other body
+types are rejected. Archive changes active to false and never deletes a row. Only active
+rows are updated; an already archived row is read without a write. Repeating archive
+returns the existing representation without changing updatedAt. No reactivation or
+physical deletion endpoint is planned in this task. Future orders must reject archived
+products and preserve immutable snapshots; orders are not implemented.
 
 ## Errors
 
 Errors retain the existing envelope: statusCode and a fixed English message.
 
-| Status | Meaning                                                              |
-| ------ | -------------------------------------------------------------------- |
-| 400    | Invalid body, encoding, UUID, or list query                          |
-| 401    | Missing/expired/revoked session or inactive account                  |
-| 403    | Role, CSRF, or Origin denial                                         |
-| 404    | Product does not exist                                               |
-| 409    | Product conflict: duplicate SKU; planned edit of an archived product |
-| 413    | Request body too large                                               |
-| 429    | Existing shared throttle, with Retry-After                           |
-| 503    | Identified storage availability failure                              |
-| 500    | Unexpected internal failure                                          |
+| Status | Meaning                                                      |
+| ------ | ------------------------------------------------------------ |
+| 400    | Invalid body, encoding, UUID, or list query                  |
+| 401    | Missing/expired/revoked session or inactive account          |
+| 403    | Role, CSRF, or Origin denial                                 |
+| 404    | Product does not exist                                       |
+| 409    | Product conflict: duplicate SKU; edit of an archived product |
+| 413    | Request body too large                                       |
+| 429    | Existing shared throttle, with Retry-After                   |
+| 503    | Identified storage availability failure                      |
+| 500    | Unexpected internal failure                                  |
 
 Catalog conflicts use "Product conflict."; catalog availability failures use
 "Product storage unavailable.". Existing authentication messages are unchanged.
@@ -132,3 +136,12 @@ Only the identified Product SKU unique violation maps to 409. Known connection,
 query/pool timeout, connection closure, and connection-capacity Prisma codes map
 to 503; unknown database errors remain sanitized 500. No raw driver errors, SQL,
 constraints, or submitted values appear in error responses.
+
+The service uses single conditional writes with returned rows, rather than a
+read/modify/write sequence or a transaction around a lone update. SKU conflicts roll
+back the whole statement. Read fallback only distinguishes missing/archived IDs or
+returns an existing archive; it does not authorize a later unconditional write. No
+physical deletion or inventory operation exists.
+
+For an executable authenticated ADMIN/OPERATOR walkthrough, see
+[development](development.md#manual-catalog-walkthrough).

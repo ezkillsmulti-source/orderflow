@@ -24,10 +24,11 @@ planned for a later milestone; the first release must not claim to support it.
 | List orders and view details       | All orders    | Own orders only |
 | Cancel orders                      | All orders    | Own orders only |
 
-The backend enforces permissions on every protected operation, regardless of
-whether the frontend exposes a control. Order ownership is the authenticated
-creator, recorded by the backend; clients cannot assign another creator. Ownership
-checks apply to listing, details, cancellation, and idempotent request replays.
+The backend enforces permissions on every protected operation, regardless of whether the
+frontend exposes a control. Catalog role checks are implemented; order ownership remains
+a later requirement. Order ownership is the authenticated creator, recorded by the
+backend; clients cannot assign another creator. Ownership checks apply to listing,
+details, cancellation, and idempotent request replays.
 
 ## Accounts and authentication
 
@@ -40,17 +41,17 @@ HttpOnly cookie, as selected in ADR 0004; Redis remains deferred. Rotate the
 session ID after successful login. Logout must invalidate the server-side session
 and clear its cookie.
 
-Protect all state-changing requests, including login and logout, against CSRF
-using server-validated CSRF tokens and trusted-origin validation. GET requests must
-not change business state. SameSite is defense in depth, not the only CSRF control.
-In production, require HTTPS and a Secure, HttpOnly, SameSite=Lax cookie with
-Path=/ and no Domain attribute, using the `__Host-` name prefix. Document trusted
-proxy configuration for TLS termination and never expose the session ID to
-frontend JavaScript. [ADR 0004](decisions/0004-session-authentication.md) implements
-PostgreSQL sessions, 30-minute idle/eight-hour absolute expiry, session-bound CSRF,
-trusted origins, and shared login throttling. Login, identity, and logout are
-implemented; current-role authorization is implemented for catalog creation and reads;
-editing, archiving, and order ownership checks remain pending.
+Protect all state-changing requests, including login and logout, against CSRF using
+server-validated CSRF tokens and trusted-origin validation. GET requests must not change
+business state. SameSite is defense in depth, not the only CSRF control. In production,
+require HTTPS and a Secure, HttpOnly, SameSite=Lax cookie with Path=/ and no Domain
+attribute, using the `__Host-` name prefix. Document trusted proxy configuration for TLS
+termination and never expose the session ID to frontend JavaScript. [ADR
+0004](decisions/0004-session-authentication.md) implements PostgreSQL sessions,
+30-minute idle/eight-hour absolute expiry, session-bound CSRF, trusted origins, and
+shared login throttling. Login, identity, and logout are implemented; current-role
+authorization is implemented for catalog creation, reads, editing, and archiving. Order
+ownership checks remain pending.
 
 ## First-release scope
 
@@ -63,10 +64,10 @@ editing, archiving, and order ownership checks remain pending.
 - Bounded pagination with deterministic ordering on all lists.
 - Backend role and ownership authorization according to the permission matrix.
 
-These behaviors are intended to be usable through the web application and enforced
-by the backend. Authentication and catalog creation/reads are implemented. Catalog editing and
-archiving, inventory, ordering, and frontend workflows remain planned requirements.
-The approved [catalog contract](product-catalog.md) defines validation and listing policies.
+These behaviors are intended to be usable through the web application and enforced by
+the backend. Authentication and the backend catalog are implemented. Inventory,
+ordering, and frontend workflows remain planned requirements. The approved [catalog
+contract](product-catalog.md) defines validation and listing policies.
 
 ## Business rules
 
@@ -207,8 +208,9 @@ are outside the current architecture direction.
   [catalog contract](product-catalog.md) selects SKU/text limits, archive visibility,
   and no reactivation for this task.
 - Define the adjustment-history interface and access policy.
-- Decide required customer information and list filters, sort fields, pagination
-  style, and default/maximum page sizes.
+- Catalog listing policy is implemented in the [catalog contract](product-catalog.md).
+  Decide required customer information and listing policies for future orders and
+  inventory history.
 - Define idempotency key format, request-content canonicalization, and retention
   policy without weakening duplicate protection for accepted retries.
 - Before later milestones, define fulfillment, payment effects on order state,

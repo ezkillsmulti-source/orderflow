@@ -135,3 +135,23 @@ export function productPage(url: string): ProductPage {
     offset: bounded('offset', 0, 0, 10000),
   };
 }
+
+export function archiveInput(
+  value: unknown,
+  req: RawBodyRequest<Request>,
+): void {
+  if (req.rawBody) productEncoding(req);
+  else if (
+    req.headers['transfer-encoding'] ||
+    Number(req.headers['content-length'] ?? 0) > 0
+  )
+    invalid();
+  if (value === undefined) return;
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).length
+  )
+    invalid();
+}

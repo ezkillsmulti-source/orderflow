@@ -30,3 +30,10 @@ and oversized values even outside Prisma. Handwritten migration constraints must
 be reviewed in later schema changes. Direct SQL writers must supply IDs and
 update timestamps. Integration tests verify limits, uniqueness, migration
 repeatability, and persistence against real PostgreSQL in an isolated database.
+
+## Catalog follow-up
+
+The backend catalog now implements the selected decimal-string/BIGINT boundary.
+The [catalog contract](../product-catalog.md) records the approved SKU normalization,
+text bounds, archive visibility, and no-reactivation policy. These API policies
+reuse the original table, unique index, and price CHECK; no migration is added.
