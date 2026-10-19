@@ -562,3 +562,24 @@ were removed, and the disposable PostgreSQL server was stopped. Local .env was
 untouched. These are local HTTP/database results; no hosted CI or browser/SameSite
 verification is claimed. Frontend, inventory, orders, optimistic locking, and
 snapshot-consistent pagination remain unimplemented.
+
+### Catalog publication review
+
+The publication review reproduced acceptance of form-encoded catalog bodies,
+including malformed percent-encoded UTF-8 that the form parser replaced before
+validation. Catalog bodies now require application/json; unrelated route parsers
+retain their existing behavior. Raw JSON bytes still use Nest rawBody capture and
+a fatal UTF-8 decoder without a second JSON parser or a higher body-size limit.
+
+Buffer-based HTTP regressions explicitly bypass Superagent JSON serialization so
+they send the intended wire bytes. A valid raw Buffer control verifies the test
+transport; malformed raw UTF-8 and non-UTF-8 JSON are rejected before service calls.
+Focused HTTP tests also preserve the 100 KiB JSON limit and unrelated JSON/form
+parsing. The original full-suite verification above is separate evidence.
+
+With the pinned Node/pnpm versions, formatting, lint, typecheck, build, 40 focused
+unit/HTTP tests (encoding, error classification, health, and auth configuration),
+and 136 PostgreSQL catalog/authentication integration tests passed after the fix.
+The full local suite was not repeated. All random review databases were removed
+and the dedicated PostgreSQL 17.6 server was stopped. No existing migration or
+local .env was changed. Hosted CI results are tracked separately on the PR.

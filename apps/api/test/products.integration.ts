@@ -240,6 +240,7 @@ describe('catalog creation and reads', () => {
         .set('Origin', origin)
         .set('x-csrf-token', authenticated.token)
         .set('Content-Type', 'application/json')
+        .serialize((body) => body) // Keep Buffer bytes; do not JSON-serialize them.
         .send(body)
         .expect(400);
       expect(response.body).toEqual({
@@ -665,6 +666,28 @@ describe('catalog editing and archival', () => {
       }
     },
   );
+  it('rejects form bodies across catalog mutations without persisted changes', async () => {
+    const created = await create().expect(201);
+    const before = await db.client.product.findMany();
+    const requests = [
+      () => request(app.getHttpServer()).post('/products'),
+      () => request(app.getHttpServer()).patch(`/products/${created.body.id}`),
+      () =>
+        request(app.getHttpServer()).post(
+          `/products/${created.body.id}/archive`,
+        ),
+    ];
+    for (const build of requests) {
+      await build()
+        .set('Cookie', authenticated.cookie)
+        .set('Origin', origin)
+        .set('x-csrf-token', authenticated.token)
+        .type('form')
+        .send('sku=FORM&name=%C3%28&priceMinor=0')
+        .expect(400);
+      expect(await db.client.product.findMany()).toEqual(before);
+    }
+  });
   it('rejects malformed UTF-8 PATCH even when parsed fields would otherwise be valid', async () => {
     const created = await create().expect(201);
     const before = await db.client.product.findMany();
@@ -674,6 +697,7 @@ describe('catalog editing and archival', () => {
       .set('Origin', origin)
       .set('x-csrf-token', authenticated.token)
       .set('Content-Type', 'application/json')
+      .serialize((body) => body)
       .send(
         Buffer.concat([
           Buffer.from('{"name":"'),

@@ -28,6 +28,10 @@ health exclusions remain unchanged. Responses use Cache-Control: no-store.
 | PATCH /products/:id        | 200 product                          | Implemented |
 | POST /products/:id/archive | 200 archived product                 | Implemented |
 
+Catalog request bodies must use application/json with UTF-8 encoding; other media
+types return 400. An archive with no body needs no Content-Type. Form payloads are
+rejected before writes, including malformed percent-encoded text.
+
 Create accepts sku, name, priceMinor, and optional description. Required fields
 must be present. Unknown fields are rejected, including id, active, and timestamps.
 Creation always sets active=true. IDs are server-generated UUIDs. Malformed UUID

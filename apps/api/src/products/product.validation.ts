@@ -25,6 +25,7 @@ function text(value: unknown, max: number): string {
 }
 /** Nest retains bytes with rawBody=true, so invalid UTF-8 cannot be hidden by decoding. */
 export function productEncoding(req: RawBodyRequest<Request>): void {
+  if (!req.is('application/json')) invalid();
   const charset = /charset\s*=\s*"?([^";\s]+)/i.exec(
     req.headers['content-type'] ?? '',
   )?.[1];
