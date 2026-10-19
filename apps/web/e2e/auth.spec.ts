@@ -18,6 +18,14 @@ test('login, invalid credentials, reload restoration, cookie privacy and logout'
     'Invalid email or password.',
   );
   await signIn(page);
+  const navigation = page.getByRole('navigation', {
+    name: 'Application',
+    exact: true,
+  });
+  await expect(navigation.getByRole('link')).toHaveCount(1);
+  await expect(
+    navigation.getByRole('link', { name: 'Products', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
   await page.getByRole('link', { name: 'Skip to content' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();

@@ -34,6 +34,7 @@ test('administrator creates, edits changed fields and archives with keyboard con
   await expect(
     page.getByText('ARS 90.071.992.547.409,91', { exact: true }),
   ).toBeVisible();
+  await visual(page, 'detail', info.project.name);
   const saved = (
     await database.query('SELECT id,"priceMinor" FROM "Product" WHERE sku=$1', [
       'BLUE-COFFEE',
@@ -44,6 +45,7 @@ test('administrator creates, edits changed fields and archives with keyboard con
   await expect(
     page.getByRole('button', { name: 'Save changes' }),
   ).toBeDisabled();
+  await visual(page, 'edit', info.project.name);
   await page.getByLabel('Price (ARS)', { exact: true }).fill('0');
   const sent = page.waitForRequest((request) => request.method() === 'PATCH');
   await page.getByRole('button', { name: 'Save changes' }).click();
