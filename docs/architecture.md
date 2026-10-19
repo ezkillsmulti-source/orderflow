@@ -38,7 +38,12 @@ and updates `updatedAt`; direct SQL writers must supply IDs and update timestamp
 The SQL migration adds the price check constraint that Prisma schema syntax cannot
 represent. Future migrations must preserve it.
 
-There are no product endpoints, authentication, inventory, orders, frontend,
+The User table adds UUID identities, normalized unique emails, password hashes,
+explicit ADMIN/OPERATOR roles, active status, and timestamps. The email policy and
+database constraints are recorded in [ADR 0003](decisions/0003-user-accounts.md).
+Hashes remain internal; no user HTTP representations exist.
+
+There are no product endpoints, authentication endpoints, inventory, orders, frontend,
 Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
 for runtime, schema, and serialization choices.

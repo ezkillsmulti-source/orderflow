@@ -20,6 +20,10 @@ No frontend, authentication, business endpoints, Redis, or worker is included.
 
 ## 2. Authenticated product catalog
 
+Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles, and
+normalized email uniqueness. Authentication endpoints, sessions, CSRF, development
+provisioning, password hashing, and catalog endpoints remain pending.
+
 Deliver development-seeded accounts, server-side sessions with an HttpOnly cookie,
 CSRF protection, backend authorization, and product creation, editing, archiving,
 and listing. Choose the session store here. Use ARS integer minor units with the
