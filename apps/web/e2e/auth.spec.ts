@@ -18,6 +18,12 @@ test('login, invalid credentials, reload restoration, cookie privacy and logout'
     'Invalid email or password.',
   );
   await signIn(page);
+  await page.getByRole('link', { name: 'Skip to content' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toBeFocused();
+  await expect(
+    page.getByRole('heading', { name: 'Products', exact: true }),
+  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Sign out', exact: true }),

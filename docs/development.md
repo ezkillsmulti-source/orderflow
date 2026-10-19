@@ -586,8 +586,8 @@ local .env was changed. Hosted CI results are tracked separately on the PR.
 
 ## React frontend
 
-The frontend foundation is in apps/web (React, Vite, strict TypeScript). Login, identity restoration, and logout are implemented. Catalog screens remain
-pending the next task commits. Run `pnpm dev` for
+The frontend is in apps/web (React, Vite, strict TypeScript). Login, identity
+restoration, logout, product list/detail reads, and administrator forms are implemented. Run `pnpm dev` for
 the API, and `pnpm dev:web` in another terminal. Open http://127.0.0.1:5173.
 Set AUTH_TRUSTED_ORIGINS to include that exact origin while retaining any CLI origin.
 Existing .env files are never rewritten: update the trusted-origin list locally.
@@ -636,8 +636,8 @@ assuming token expiration or replaying a mutation. No mutation retries are autom
 The authentication increment passed formatting, lint, typecheck, both builds, seven
 web unit/proxy tests, and four real-API browser checks at 1280x900 and 390x844.
 The rendered login was inspected at both sizes. Automated checks do not establish
-complete accessibility compliance. Full milestone acceptance remains pending the
-catalog UI.
+complete accessibility compliance. These are intermediate authentication checks;
+the final catalog verification record below includes the combined application.
 
 ### Browsing the catalog
 
@@ -657,4 +657,89 @@ The browsing increment passed 14 web unit/proxy tests and eight real-API browser
 checks across desktop/mobile, plus formatting, lint, typecheck, and the web build.
 Catalog captures were inspected at both sizes. Narrow screens use a keyboard-focusable
 horizontally scrollable table, with a visible scrolling hint and readable columns.
-Administrator mutation controls remain pending this task's final increment.
+
+### Administrator catalog actions
+
+Administrators can create a product, edit only changed fields, and archive after
+confirmation. Operators have read controls only; direct requests remain subject to
+backend authorization. Archived products have no edit/reactivation controls. A role
+change during editing revalidates identity on 403 and removes disallowed controls;
+a confirmed expired/inactive session returns to sign-in and clears user-specific data.
+
+Price entry uses ungrouped ASCII decimal ARS with a dot and zero, one, or two
+fractional digits: `0`, `1.5`, `1250.50`, and `90071992547409.91` are valid. Leading
+zeros other than `0`, surrounding whitespace, commas/grouping, signs, exponents,
+trailing dots, and more than two fractional digits are rejected. The maximum is
+90071992547409.91 ARS (9007199254740991 minor units); conversion uses bigint only.
+Display uses es-AR grouping and a comma, so input and display formats intentionally
+differ and the field explains its format. SKU/name/description follow the
+[catalog contract](product-catalog.md), including trimming, valid Unicode, and
+case-sensitive SKU reservation across archives.
+
+Validation errors are associated with fields. Conflicts and forbidden requests keep
+form values when the identity/role remains valid. A failed network response or
+15-second timeout can leave an uncertain write outcome: check the current catalog
+before deliberately resubmitting. No mutation is automatically retried after CSRF
+refresh or a transport failure. Confirmed writes load fresh server data. PATCH sends
+only changed normalized values; concurrent submitted fields use last-write-wins,
+without optimistic locking. Pagination is not a consistent snapshot.
+
+Use the keyboard-accessible archive dialog to confirm or cancel. Initial focus is
+on Keep product active; Escape cancels and returns focus. Busy confirmation cannot
+be dismissed. Navigation moves focus to the destination heading; Skip to content
+focuses the main landmark without changing the catalog route. Narrow tables scroll
+horizontally with a visible hint. Accessibility has not been audited for full compliance.
+
+### Manual web walkthrough
+
+1. Follow Local setup above, apply migrations, and provision both development accounts
+   using local DEV_ADMIN_EMAIL/DEV_ADMIN_PASSWORD and operator equivalents. Keep
+   passwords out of shell history and source control.
+2. In the root .env, configure NODE_ENV=development and
+   `AUTH_TRUSTED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:5173`.
+   Retain your existing database URL and generated SESSION_SECRET. Restart the API
+   after configuration changes.
+3. Run `pnpm dev` in one terminal and `pnpm dev:web` in another. Open
+   http://127.0.0.1:5173 and sign in as the provisioned administrator.
+4. Choose Create product, enter a unique SKU, a name, and `1250.50` as Price (ARS).
+   The detail view displays `ARS 1.250,50`. Edit only the price to `0`; confirm it
+   displays `ARS 0,00`. Archive the product, cancelling once with Escape before
+   confirming. Archived details have no edit controls.
+5. Select Archived products in the list; open its detail. Reload to verify session
+   restoration. Sign out; sign in as the operator and read the same archive.
+   Creation/edit/archive controls are absent. Sign out again.
+
+Real-browser verification exercises this workflow with ephemeral accounts and
+synthetic products at both viewports, including the maximum monetary value. Browser
+checks also exercise invalid credentials, actual origin/CSRF rejection without
+writes, session invalidation, role changes, duplicate SKUs, concurrent archival
+before an edit, and a committed creation whose response is lost. Screenshots/traces
+with credentials or real data must never be committed or uploaded as public artifacts.
+For private synthetic visual review only, set E2E_VISUAL_DIR to a directory outside
+the repository before `pnpm test:browser`; captures include empty login fields and
+synthetic catalog/form/dialog screens. The default and CI do not capture them.
+
+### Frontend catalog verification — 2026-10-19
+
+Using Node 24.22.0, pnpm 10.34.7, and a dedicated temporary PostgreSQL 17.6 server,
+the final combined application passed:
+
+- `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`.
+- `pnpm test`: 90 API unit/HTTP tests and 37 web unit/proxy tests.
+- `pnpm test:integration`: 170 isolated PostgreSQL tests.
+- `pnpm build`: API TypeScript compilation and frontend TypeScript/Vite build.
+- `pnpm test:browser`: 18 real-API Chromium checks, at 1280x900 and 390x844.
+
+Rendered login, catalog, creation form, and archive confirmation were visually
+inspected at both sizes using private synthetic captures outside Git. The mobile
+catalog uses horizontal table scrolling; forms/dialogs remain within the viewport.
+Keyboard assertions cover destination focus, skip navigation, dialog cancellation,
+and return focus. This is not a complete accessibility or browser compatibility audit;
+Firefox, WebKit, physical mobile devices, and production HTTPS hosting were not tested.
+
+A deliberate no-matching-tests run returned a nonzero exit code to exercise the
+runner's failure cleanup. After successful and failed browser runs, a database check
+confirmed zero remaining generated test databases. The temporary PostgreSQL server
+was stopped after verification. No application database, existing .env file, previous
+migration, or backend production source was changed. The workflow includes browser
+checks, but hosted CI was not run because this branch was not pushed.

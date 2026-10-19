@@ -92,15 +92,31 @@ orders, Redis, or worker. Future business features remain governed by the
 [decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
 choices.
 
-## Web foundation
+## Web application
 
 apps/web adds a React/Vite application with strict TypeScript and plain CSS. Vite's
 local /api proxy preserves Origin and cookie attributes; the API continues to enforce
 authentication, roles, CSRF, and trusted origins. SessionClient owns memory-only CSRF and session identity. Epochs and AbortController
 prevent stale requests from restoring old account data. React subscribes through
 useSyncExternalStore; no global state framework or token persistence is used.
-Login/logout, catalog listing and detail reads are implemented. Hash navigation
+Login/logout, catalog listing/detail reads, and administrator catalog forms are implemented. Hash navigation
 keeps browser history without an extra router dependency. Read effects ignore
 results after unmount; session boundaries additionally reject stale requests.
 Monetary JSON strings are validated and formatted with bigint quotient/remainder,
-never Number division. Administrator forms remain pending. Root checks include the web package.
+never Number division. Form prices use ungrouped decimal text with a dot and at most
+two fractional digits, converted using bigint. Client validation improves feedback;
+the backend remains authoritative for permissions, validation, SKU uniqueness, and
+active-only updates. PATCH sends only normalized changed fields. There is no
+optimistic locking. Confirmed writes navigate to or reload fresh server data.
+
+403 responses revalidate identity without assuming CSRF expiry or replaying the
+request. Mutations that lose their response report an uncertain outcome, preserve
+form input, and require deliberate action. Requests have a 15-second timeout;
+timeouts cannot prove whether a write committed. Native modal dialogs confirm
+archival and restore focus on cancellation. React renders product text, never HTML.
+
+Root formatting/lint/typecheck/unit/build checks include the web package. Playwright
+uses the real API and a random, migrated PostgreSQL database with ephemeral accounts;
+its runner cleans up children and the database on success or failure. CI retains the
+backend checks and adds Chromium installation and browser workflows. Production web
+hosting and reverse-proxy configuration remain planned.

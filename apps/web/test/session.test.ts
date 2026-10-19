@@ -96,3 +96,85 @@ describe('session and API boundary', () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 });
+
+it('rejects a delayed previous-account read after a different login', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  let finish!: (response: Response) => void;
+  fetcher.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const old = client.request('/products').catch((error: unknown) => error);
+  fetcher
+    .mockResolvedValueOnce(json({ csrfToken: 'new-login' }))
+    .mockResolvedValueOnce(
+      json({ user: { ...user, id: 'different' }, csrfToken: 'new-account' }),
+    );
+  await client.login('different@example.test', 'synthetic passphrase');
+  finish(json({ items: ['previous account data'] }));
+  expect(await old).toBeInstanceOf(Cancelled);
+  expect(client.getSnapshot().user?.id).toBe('different');
+});
+
+it('retains the current form generation on a same-role 403 and refreshes CSRF only on deliberate retry', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  const generation = client.getSnapshot().generation;
+  fetcher
+    .mockResolvedValueOnce(json({}, 403))
+    .mockResolvedValueOnce(json({ user }));
+  await expect(client.request('/products', 'POST', {})).rejects.toMatchObject({
+    status: 403,
+  });
+  expect(client.getSnapshot().generation).toBe(generation);
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  fetcher
+    .mockResolvedValueOnce(json({ csrfToken: 'fresh' }))
+    .mockResolvedValueOnce(json({}));
+  await client.request('/products', 'POST', {});
+  expect(fetcher.mock.calls[5]![1]?.headers).toMatchObject({
+    'X-CSRF-Token': 'fresh',
+  });
+});
+
+it('clears an expired identity on forbidden logout after revalidation without retrying logout', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  fetcher
+    .mockResolvedValueOnce(json({ csrfToken: 'expired' }))
+    .mockResolvedValueOnce(json({}, 403))
+    .mockResolvedValueOnce(json({}, 401));
+  await expect(client.logout()).rejects.toMatchObject({ status: 403 });
+  expect(client.getSnapshot().phase).toBe('anonymous');
+  expect(
+    fetcher.mock.calls.filter(([path]) => path === '/api/auth/logout'),
+  ).toHaveLength(1);
+});
+
+it('bounds a stalled mutation and reports an uncertain outcome without retry', async () => {
+  const { fetcher, client } = setup();
+  await login(fetcher, client);
+  vi.useFakeTimers();
+  try {
+    fetcher.mockImplementationOnce(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new Error('timeout')),
+          );
+        }),
+    );
+    const outcome = client
+      .request('/products', 'POST', {})
+      .catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(await outcome).toMatchObject({ status: 0, uncertain: true });
+    expect(client.getSnapshot().user).toEqual(user);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.useRealTimers();
+  }
+});

@@ -113,6 +113,7 @@ h2 {
   margin: 0 0 1rem;
 }
 p {
+  overflow-wrap: anywhere;
   margin: 0.5rem 0 1.25rem;
 }
 .muted {
@@ -433,4 +434,12 @@ td:nth-child(2) {
   .topbar > .row {
     justify-content: flex-end;
   }
+}
+
+h1,
+h2 {
+  overflow-wrap: anywhere;
+}
+.field {
+  min-width: 0;
 }

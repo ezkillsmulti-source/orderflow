@@ -8,7 +8,9 @@ Argon2id password hashing, and explicit development account provisioning are
 implemented. Session login/identity/logout, PostgreSQL-backed sessions, CSRF protection,
 and shared login throttling are implemented. The backend catalog implements product
 creation, listing, detail reads, editing, and archiving with current-role authorization.
-The React/Vite frontend foundation is in apps/web; login, identity restoration, and logout are implemented; product browsing and detail reads are implemented; administrator forms remain pending.
+The React/Vite application in `apps/web` implements login, identity restoration,
+logout, product browsing/detail reads, and administrator creation, editing, and
+archival. Both roles can read archived products. Inventory and orders remain planned.
 See the [frontend startup instructions](docs/development.md#react-frontend).
 
 ## Local setup
@@ -27,7 +29,15 @@ pnpm db:migrate
 pnpm dev
 ```
 
-In another terminal:
+Start the frontend in another terminal and open http://127.0.0.1:5173:
+
+```bash
+pnpm dev:web
+```
+
+Include `http://127.0.0.1:5173` in AUTH_TRUSTED_ORIGINS and provision development
+accounts as described below. The Vite proxy is for development, not production hosting.
+To check API health:
 
 ```bash
 curl --fail http://127.0.0.1:3000/health/live
@@ -60,6 +70,8 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm build
+pnpm --filter @orderflow/web browser:install
+pnpm test:browser
 ```
 
 Integration checks require TEST_DATABASE_ADMIN_URL from `.env` and create/drop a
@@ -74,8 +86,8 @@ There is no public registration, password recovery, production account
 provisioning, inventory, ordering, Redis, worker, or deployment yet. Catalog endpoints
 enforce ADMIN writes and ADMIN/OPERATOR reads, including archived products. Order
 ownership authorization remains pending. See the [catalog
-contract](docs/product-catalog.md). The planned stack adds React/Vite and browser
-testing when the frontend is introduced, and background processing only when needed.
+contract](docs/product-catalog.md). React/Vite and Chromium browser tests are implemented. Background processing will
+be added only when needed.
 
 - [Product scope and business rules](docs/product-scope.md)
 - [Roadmap and current progress](docs/roadmap.md)

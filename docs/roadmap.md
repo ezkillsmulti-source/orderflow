@@ -1,8 +1,9 @@
 # Roadmap
 
 Milestone 1 delivered the backend foundation. Milestone 2 has accounts, sessions,
-role authorization, the backend catalog, and frontend login/logout. Frontend product browsing is implemented. Administrator forms and full browser
-workflow acceptance remain pending. The [product scope](product-scope.md)
+role authorization, the backend catalog, and the React authentication/catalog UI.
+Administrator forms and real-API browser workflows are implemented; the development
+guide records verification separately from production deployment. The [product scope](product-scope.md)
 remains the source of business rules.
 
 ## 1. Reproducible backend foundation
@@ -16,7 +17,8 @@ The [development guide](development.md) defines setup and checks and includes a
 dated verification record. Isolated Docker Compose startup, volume persistence
 across container recreation, cleanup, and a hosted backend CI run have passed;
 the guide links the specific CI run, and PR checks show results for later commits.
-No frontend, authentication, business endpoints, Redis, or worker is included.
+That foundation increment did not include frontend, authentication, business endpoints,
+Redis, or a worker; the catalog increment below adds authentication and products.
 
 ## 2. Authenticated product catalog
 
@@ -25,10 +27,11 @@ email uniqueness, Argon2id password hashing, and explicit development provisioni
 PostgreSQL-backed sessions with idle/absolute expiry, CSRF/origin protection,
 login/me/logout endpoints, current-user authentication, and shared login throttling.
 Current-role authorization and catalog creation, listing, detail reads, editing, and
-archiving are implemented. Order ownership authorization remains pending. The milestone
-is not complete: frontend and browser workflow verification remain pending.
-
-Next deliver the frontend authenticated catalog workflow and browser verification. The
+archiving are implemented. The React/Vite UI supports login/logout, identity restoration,
+read-only browsing for both roles, and administrator create/edit/archive workflows.
+Browser tests cover desktop/mobile Chromium with the real API and isolated PostgreSQL.
+Order ownership authorization, inventory, production account provisioning, and hosting
+remain pending. The
 [catalog contract](product-catalog.md) records the approved policies. Use ARS integer
 minor units with the documented numeric bounds and exact arithmetic; zero initial stock
 remains a requirement for the later inventory implementation.

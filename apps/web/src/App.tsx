@@ -110,6 +110,9 @@ export function App() {
     heading.current?.focus();
     setError(null);
   }, [state.generation]);
+  useEffect(() => {
+    if (state.phase === 'anonymous') window.location.hash = '#products';
+  }, [state.phase]);
   async function logout() {
     setLoggingOut(true);
     setError(null);
@@ -124,7 +127,14 @@ export function App() {
   }
   return (
     <>
-      <a className="skip-link" href="#main">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById('main')?.focus();
+        }}
+      >
         Skip to content
       </a>
       <header className="topbar">
@@ -150,7 +160,7 @@ export function App() {
           </div>
         )}
       </header>
-      <main id="main" className="page">
+      <main id="main" className="page" tabIndex={-1}>
         <ErrorNotice error={error} />
         {state.phase === 'checking' || loggingOut ? (
           <p role="status">

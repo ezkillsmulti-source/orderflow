@@ -103,6 +103,7 @@ export class SessionClient {
     const epoch = this.epoch;
     const controller = new AbortController();
     this.pending.add(controller);
+    const timeout = setTimeout(() => controller.abort(), 15000);
     const unsafe = method !== 'GET';
     try {
       let response: Response;
@@ -123,8 +124,7 @@ export class SessionClient {
           body: body === undefined ? undefined : JSON.stringify(body),
         });
       } catch {
-        if (epoch !== this.epoch || controller.signal.aborted)
-          throw new Cancelled();
+        if (epoch !== this.epoch) throw new Cancelled();
         throw new ApiError(0, unsafe);
       }
       const data: unknown =
@@ -146,6 +146,7 @@ export class SessionClient {
         throw new ApiError(502, unsafe);
       return data as T;
     } finally {
+      clearTimeout(timeout);
       this.pending.delete(controller);
     }
   }
@@ -191,6 +192,7 @@ export class SessionClient {
       'POST',
       { email, password },
     );
+    if (epoch !== this.epoch) throw new Cancelled();
     if (typeof result.csrfToken !== 'string' || !result.csrfToken)
       throw new ApiError(502, true);
     this.csrfToken = result.csrfToken;
@@ -198,20 +200,27 @@ export class SessionClient {
   }
   async logout() {
     this.boundary();
+    const epoch = this.epoch;
     try {
       await this.token();
+      if (epoch !== this.epoch) throw new Cancelled();
       await this.raw('/auth/logout', 'POST');
+      if (epoch !== this.epoch) throw new Cancelled();
       this.invalidate();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) this.invalidate();
+      else if (error instanceof ApiError && error.status === 403)
+        await this.forbidden();
       throw error;
     }
   }
   /** Refresh identity after 403, without treating every denial as a CSRF failure. */
   private async forbidden() {
+    const epoch = this.epoch;
     this.csrfToken = undefined;
     try {
       const result = await this.raw<{ user: Identity }>('/auth/me');
+      if (epoch !== this.epoch) throw new Cancelled();
       const current = identity(result.user);
       if (
         current.id !== this.state.user?.id ||

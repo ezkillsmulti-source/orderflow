@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
-import { formatPrice, minorAmount } from '../src/money';
+import { formatPrice, minorAmount, priceInput, priceText } from '../src/money';
+import { changedFields, validateFields } from '../src/product-form';
 import { pageFrom, listing } from '../src/catalog-data';
 it('formats exact ARS without floating-point business values', () => {
   expect(formatPrice('0')).toBe('ARS 0,00');
@@ -30,4 +31,65 @@ it('bounds route pagination before requesting the API and rejects malformed resp
       pagination: { limit: 25, offset: 0, hasMore: false },
     }),
   ).toThrow();
+});
+
+it.each([
+  ['0', '0'],
+  ['0.01', '1'],
+  ['1.5', '150'],
+  ['1250.50', '125050'],
+  ['90071992547409.91', '9007199254740991'],
+])('parses explicit decimal ARS %s exactly', (raw, expected) => {
+  expect(priceInput(raw)).toBe(expected);
+  expect(priceInput(priceText(expected))).toBe(expected);
+});
+it.each([
+  '',
+  '01',
+  '.5',
+  '1.',
+  '-1',
+  '+1',
+  '1e2',
+  '1,25',
+  '1,000.00',
+  '1.234',
+  ' 1',
+  '1\n',
+  '90071992547409.92',
+])('rejects ambiguous or out-of-range price %s', (raw) => {
+  expect(() => priceInput(raw)).toThrow();
+});
+it('validates Unicode bounds and computes only normalized changed fields', () => {
+  const fields = {
+    sku: ' SKU ',
+    name: '🦉'.repeat(200),
+    description: ' ',
+    price: '0',
+  };
+  const { data, errors } = validateFields(fields);
+  expect(errors).toEqual({});
+  const original = {
+    ...data,
+    id: 'id',
+    active: true,
+    createdAt: '',
+    updatedAt: '',
+  };
+  expect(changedFields(data, original)).toEqual({});
+  expect(changedFields({ ...data, name: 'Different' }, original)).toEqual({
+    name: 'Different',
+  });
+  expect(
+    validateFields({
+      ...fields,
+      name: '\ud800',
+      description: '\0',
+      sku: ' bad sku',
+      price: '-1',
+    }).errors,
+  ).toHaveProperty('name');
+  expect(
+    validateFields({ ...fields, name: '🦉'.repeat(201) }).errors.name,
+  ).toBeTruthy();
 });

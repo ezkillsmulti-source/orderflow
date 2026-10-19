@@ -5,11 +5,12 @@ import {
   listLink,
   listing,
   pageFrom,
-  product,
   type Listing,
   type Page,
-  type Product,
 } from './catalog-data';
+import { ArchiveDialog } from './ArchiveDialog';
+import { EditProduct, ProductForm } from './ProductForm';
+import { useProduct } from './use-product';
 import { formatPrice } from './money';
 
 function useHash() {
@@ -42,30 +43,18 @@ function ReadError({ error, retry }: { error: ApiError; retry: () => void }) {
     </section>
   );
 }
-export function useProduct(id: string, revision = 0) {
-  const [state, setState] = useState<{ data?: Product; error?: ApiError }>({});
-  useEffect(() => {
-    let active = true;
-    setState({});
-    void session
-      .request<unknown>(`/products/${encodeURIComponent(id)}`)
-      .then(product)
-      .then((data) => {
-        if (active) setState({ data });
-      })
-      .catch((error: unknown) => {
-        if (active && !(error instanceof Cancelled))
-          setState({
-            error: error instanceof ApiError ? error : new ApiError(502),
-          });
-      });
-    return () => {
-      active = false;
-    };
-  }, [id, revision]);
-  return state;
-}
-function ProductDetail({ id, back }: { id: string; back: string }) {
+
+function ProductDetail({
+  id,
+  back,
+  admin,
+}: {
+  id: string;
+  back: string;
+  admin: boolean;
+}) {
+  const [archive, setArchive] = useState(false);
+  const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);
   const state = useProduct(id, revision);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -94,6 +83,32 @@ function ProductDetail({ id, back }: { id: string; back: string }) {
         </div>
         <Status active={data.active} />
       </div>
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
+      {admin && data.active && (
+        <div className="row">
+          <a className="button primary" href={`#products/${data.id}/edit`}>
+            Edit product
+          </a>
+          <button className="danger" onClick={() => setArchive(true)}>
+            Archive product
+          </button>
+        </div>
+      )}
+      {archive && admin && data.active && (
+        <ArchiveDialog
+          data={data}
+          close={() => setArchive(false)}
+          archived={() => {
+            setArchive(false);
+            setNotice('Product archived.');
+            setRevision((value) => value + 1);
+          }}
+        />
+      )}
       <div className="detail-grid">
         <section className="card">
           <h2>Description</h2>
@@ -114,10 +129,12 @@ function ProductList({
   page,
   back,
   remember,
+  admin,
 }: {
   page: Page;
   back: string;
   remember: (back: string) => void;
+  admin: boolean;
 }) {
   const [state, setState] = useState<{ data?: Listing; error?: ApiError }>({});
   const [revision, setRevision] = useState(0);
@@ -156,6 +173,15 @@ function ProductList({
           <h1 tabIndex={-1}>Products</h1>
           <p className="muted">A clear view of your catalog.</p>
         </div>
+        {admin && (
+          <a
+            className="button primary"
+            href="#products/new"
+            onClick={() => remember(back)}
+          >
+            Create product
+          </a>
+        )}
       </div>
       <div className="toolbar">
         <div className="field">
@@ -303,7 +329,7 @@ function ProductList({
   );
 }
 export function Catalog({ user }: { user: Identity }) {
-  void user;
+  const admin = user.role === 'ADMIN';
   const hash = useHash();
   const container = useRef<HTMLDivElement>(null);
   const [back, remember] = useState('#products');
@@ -316,11 +342,43 @@ export function Catalog({ user }: { user: Identity }) {
   try {
     if (path === 'products')
       content = (
-        <ProductList page={pageFrom(query)} back={hash} remember={remember} />
+        <ProductList
+          page={pageFrom(query)}
+          back={hash}
+          remember={remember}
+          admin={admin}
+        />
+      );
+    else if (path === 'products/new')
+      content = admin ? (
+        <ProductForm />
+      ) : (
+        <ReadError
+          error={new ApiError(403)}
+          retry={() => {
+            window.location.hash = '#products';
+          }}
+        />
+      );
+    else if (/^products\/[0-9a-f-]{36}\/edit$/i.test(path ?? ''))
+      content = admin ? (
+        <EditProduct key={path} id={path!.split('/')[1]!} />
+      ) : (
+        <ReadError
+          error={new ApiError(403)}
+          retry={() => {
+            window.location.hash = '#products';
+          }}
+        />
       );
     else if (/^products\/[0-9a-f-]{36}$/i.test(path ?? ''))
       content = (
-        <ProductDetail key={path} id={path!.split('/')[1]!} back={back} />
+        <ProductDetail
+          key={path}
+          id={path!.split('/')[1]!}
+          back={back}
+          admin={admin}
+        />
       );
     else
       content = (
