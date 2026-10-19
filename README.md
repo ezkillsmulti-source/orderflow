@@ -5,8 +5,9 @@ inventory, and orders. The backend foundation is implemented: a NestJS API,
 PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
 and a GitHub Actions workflow. User persistence with normalized unique emails and
 ADMIN/OPERATOR roles, Argon2id password hashing, and explicit development account
-provisioning are implemented. Authentication endpoints, sessions, CSRF, business
-features, and the frontend are planned.
+provisioning are implemented. Session login/identity/logout, PostgreSQL-backed
+sessions, CSRF protection, and shared login throttling are implemented. Business
+features and the frontend remain planned.
 
 ## Local setup
 
@@ -16,7 +17,7 @@ pinned toolchain and configuration details. From the repository root:
 
 ```bash
 test -e .env || cp .env.example .env
-# Replace the local password consistently in .env before starting PostgreSQL.
+# Replace the local database password and generate SESSION_SECRET as documented.
 pnpm install --frozen-lockfile
 docker compose up -d --wait postgres
 pnpm db:generate
@@ -42,6 +43,12 @@ run `pnpm users:provision:dev` after migrations. See the [manual provisioning
 procedure](docs/development.md#development-account-provisioning) for credential
 handling, repeat behavior, and conflicts. Provisioning is never automatic.
 
+Authentication endpoints are `GET /auth/csrf`, `POST /auth/login`, `GET /auth/me`,
+and `POST /auth/logout`. Follow the [API contract and curl walkthrough](docs/development.md#authentication-api)
+to use cookies, trusted Origin, and session-bound CSRF tokens. Sessions expire
+after 30 idle minutes or eight hours total and work across configured API instances.
+All instances must share PostgreSQL and SESSION_SECRET.
+
 ## Verification
 
 ```bash
@@ -61,8 +68,9 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 
 ## Scope and documents
 
-There is no frontend, login/session/CSRF implementation, product CRUD, inventory,
-ordering, Redis, worker, or deployment yet. The Product table alone does not implement catalog
+There is no frontend, public registration, password recovery, production account
+provisioning, product CRUD, inventory, ordering, Redis, worker, or deployment yet.
+Authentication alone does not implement business authorization. The Product table alone does not implement catalog
 business behavior. The planned stack adds React/Vite and browser testing when the
 frontend is introduced, and background processing only when needed.
 

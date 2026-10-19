@@ -75,6 +75,17 @@ Clean up the isolated project even if a verification step fails.
 
 ## Migrations
 
+API startup now also requires SESSION_SECRET (64 random hex characters) and
+AUTH_TRUSTED_ORIGINS (comma-separated exact origins). Generate the secret locally
+with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+Set `AUTH_TRUSTED_ORIGINS=http://127.0.0.1:3000` for local HTTP. Use the same secret
+and database on every API instance. Never commit the generated secret or overwrite
+your existing `.env`. Provisioning and migration commands do not require these API
+settings. Production additionally requires HTTPS origins and AUTH_TRUST_PROXY with
+explicit proxy IPs/CIDRs; wildcard/hop-count/unrestricted trust is rejected.
+The API currently listens on loopback; deploy behind an explicitly trusted local
+TLS proxy and prevent access that bypasses it. See [ADR 0004](decisions/0004-session-authentication.md).
+
 After installation, run `pnpm db:generate`, then `pnpm db:migrate`. The latter runs
 `prisma migrate deploy` and applies committed SQL migrations; it is safe to repeat.
 Generation is also included in build, typecheck, and test scripts and does not
@@ -141,8 +152,121 @@ trusted database tool and resolve account management deliberately; this command 
 not a reset tool. Concurrent invocations retry uniqueness/serialization conflicts
 up to three attempts; an exhausted retry fails safely and can be rerun.
 
-Provisioning never runs during API startup or migrations. Login endpoints,
-sessions, CSRF, password recovery, and production account provisioning are pending.
+Provisioning never runs during API startup or migrations. Password recovery and
+production account provisioning remain pending. Provisioned users can authenticate
+through the following API.
+
+## Authentication API
+
+All authentication responses use `Cache-Control: no-store`. Never log cookie/CSRF
+headers, token responses, or request bodies containing credentials. Do not enable
+session-library debug logging, verbose curl traces, or proxy logging of these values.
+There is no CORS middleware: use a same-origin browser deployment. Safe requests
+may omit Origin; if present, it must exactly match AUTH_TRUSTED_ORIGINS. Every
+unsafe request requires a trusted Origin, including CLI clients; there is no CLI
+bypass. Future unsafe routes inherit CSRF checks and the default authentication
+guard; public endpoints must opt out of authentication explicitly.
+
+| Endpoint            | Request                                                   | Success                                                                                                                          | Relevant errors                                                                                             |
+| ------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /auth/csrf`    | Current cookie if available                               | 200 `{ "csrfToken": "..." }`, anonymous session if needed                                                                        | 429 admission limit, 503 store failure                                                                      |
+| `POST /auth/login`  | JSON email/password; cookie, trusted Origin, X-CSRF-Token | 200 `{ "user": { "id": "...", "email": "...", "role": "ADMIN" }, "csrfToken": "..." }`; regenerated cookie/token persisted first | 400 malformed/out-of-bounds input, 401 generic credentials, 403 origin/CSRF, 429 limits, 503 infrastructure |
+| `GET /auth/me`      | Authenticated cookie                                      | 200 `{ "user": { "id": "...", "email": "...", "role": "ADMIN" } }`                                                               | 401 missing/expired/inactive account, 429 admission limit, 503 storage                                      |
+| `POST /auth/logout` | Cookie, trusted Origin, current X-CSRF-Token              | 204, server session destroyed and cookie cleared                                                                                 | 403 stale/missing token or origin, 429 admission limit, 503 store failure                                   |
+
+Email normalization and password bounds follow ADR 0003; no password trimming or
+Unicode normalization occurs. Login rejects unknown input fields, and invalid,
+nonexistent, and inactive accounts receive the same credential error for valid
+credential syntax. Absent accounts still undergo dummy Argon2id verification.
+The default JSON parser bounds bodies to 100 KiB; email/password validation applies
+the much smaller documented limits before password verification. Password hashes
+and session IDs never appear in JSON responses.
+
+Sessions expire server-side after 30 idle minutes or eight hours total, including
+anonymous sessions. Successful identity/token access refreshes activity with a
+conditional UPDATE, capped at the absolute deadline. Login creates a fresh session
+and token; clients must replace the old token. Current active status and role are
+read on every protected request. A failed store operation returns 503 and must not
+be treated as login failure or successful logout. Retry logout once storage
+recovers. Login persistence failures discard the request's session without issuing
+an authenticated cookie. Response-end duplicate saves reuse the first write
+result; they cannot recreate a session revoked by another instance. To repeat
+logout after success, fetch a fresh anonymous token/cookie and
+submit that pair; reusing the destroyed session's token returns 403.
+
+Shared PostgreSQL limits admit 200 non-health requests per fixed minute globally;
+login additionally allows 30 attempts per source IP and 10 per normalized account
+per 15-minute window. Successful and failed logins count. Responses include
+Retry-After on 429; attempts do not extend the window or cause permanent lockout.
+Account keys are standard SHA-256 digests, not plaintext passwords or a secrecy
+guarantee for email. Counter failure returns 503 with no local fallback. The
+admission limit bounds new rows; expired session and limiter cleanup deletes up to
+500 rows per table per minute per instance, without overlapping jobs. Monitor
+backlog/capacity and keep API/database clocks synchronized. Thresholds are initial
+capacity choices, not a production traffic sizing claim.
+
+For production, set NODE_ENV=production, use HTTPS origins and a shared random
+SESSION_SECRET, and configure AUTH_TRUST_PROXY with only actual proxy addresses
+(for a local proxy, for example `127.0.0.1/32,::1/128`). The proxy must replace
+client-supplied forwarded headers and keep the loopback API unreachable directly.
+Production cookies are `__Host-orderflow.sid`, Secure, HttpOnly, SameSite=Lax,
+Path=/, without Domain; untrusted/plain HTTP is rejected. Local HTTP uses
+`orderflow.sid` with the same attributes except Secure. Browser SameSite behavior
+is not established by HTTP/header tests. Business authorization remains pending.
+
+### Curl walkthrough
+
+Start the migrated API and explicitly provision local users as described above.
+From the repository root, run this with the pinned Node version. It reads matching
+credentials from local `.env` (shell values take precedence), keeps tokens and
+credentials in a private temporary directory, and prints only safe identity and
+HTTP status. Use the configured trusted origin; local defaults are shown.
+
+```bash
+umask 077
+auth_tmp=$(mktemp -d)
+auth_origin=http://127.0.0.1:3000
+trap 'rm -rf -- "$auth_tmp"' EXIT
+
+node --env-file-if-exists=.env --input-type=module -e '
+  import { writeFileSync } from "node:fs";
+  writeFileSync(process.argv[1], JSON.stringify({
+    email: process.env.DEV_ADMIN_EMAIL, password: process.env.DEV_ADMIN_PASSWORD
+  }), { mode: 0o600 });
+' "$auth_tmp/credentials.json"
+
+curl --fail --silent --show-error -c "$auth_tmp/cookies" \
+  -o "$auth_tmp/csrf.json" "$auth_origin/auth/csrf"
+node --input-type=module -e '
+  import { readFileSync, writeFileSync } from "node:fs";
+  writeFileSync(process.argv[2], "X-CSRF-Token: " +
+    JSON.parse(readFileSync(process.argv[1], "utf8")).csrfToken);
+' "$auth_tmp/csrf.json" "$auth_tmp/csrf.header"
+
+curl --fail --silent --show-error -b "$auth_tmp/cookies" -c "$auth_tmp/cookies" \
+  -H "Origin: $auth_origin" -H 'Content-Type: application/json' \
+  -H "@$auth_tmp/csrf.header" --data-binary "@$auth_tmp/credentials.json" \
+  -o "$auth_tmp/login.json" "$auth_origin/auth/login"
+curl --fail --silent --show-error -b "$auth_tmp/cookies" \
+  "$auth_origin/auth/me"
+
+# Login rotated the token. Retrieve the current token before logout.
+curl --fail --silent --show-error -b "$auth_tmp/cookies" -c "$auth_tmp/cookies" \
+  -o "$auth_tmp/csrf.json" "$auth_origin/auth/csrf"
+node --input-type=module -e '
+  import { readFileSync, writeFileSync } from "node:fs";
+  writeFileSync(process.argv[2], "X-CSRF-Token: " +
+    JSON.parse(readFileSync(process.argv[1], "utf8")).csrfToken);
+' "$auth_tmp/csrf.json" "$auth_tmp/csrf.header"
+curl --fail --silent --show-error -b "$auth_tmp/cookies" -c "$auth_tmp/cookies" \
+  -H "Origin: $auth_origin" -H "@$auth_tmp/csrf.header" -X POST \
+  -o /dev/null -w '%{http_code}\n' "$auth_origin/auth/logout"
+```
+
+Logout returns 204. A subsequent `/auth/me` with that cookie jar returns 401.
+Repeat the CSRF GET/header extraction and logout POST to demonstrate safe repeated
+logout with a fresh anonymous session. Temporary files are deleted on shell exit;
+remove them sooner if desired. This walkthrough creates no accounts implicitly.
 
 ## Checks and isolation
 
@@ -257,3 +381,58 @@ contained no generated passwords or stored hashes. No local `.env` was changed.
 All generated test databases, project containers, network, volume, and temporary
 configuration were removed. These are local results; this branch has not been
 pushed and no hosted check is claimed for it.
+
+## Session infrastructure verification
+
+On 2026-10-19, using pinned Node/pnpm and an isolated PostgreSQL 17.6 Compose
+project, frozen installation, Prisma validation, formatting, lint, typecheck,
+68 unit/HTTP tests, 34 integration tests, and build passed. Tests exercised shared
+session persistence, server expiry, missing-store failure, cookie attributes,
+bounded cleanup, and renewal that cannot recreate a deleted session. Test databases
+and the project's containers, network, volume, and temporary configuration were
+removed. Authentication endpoints are added in the subsequent task commit.
+
+## Session authentication verification
+
+On 2026-10-19, the completed authentication task passed frozen installation,
+Prisma validation, formatting, lint, typecheck, 69 unit/HTTP tests, 57 real
+PostgreSQL integration tests, and build using Node 24.22.0/pnpm 10.34.7. The full
+four-migration history works on fresh databases; the original Product/User
+migrations remain unchanged. Tests also upgrade the Product-only history without
+changing Product data or its monetary constraints.
+
+HTTP tests cover rotation, safe identity, dummy credential verification,
+cross-instance sessions, CSRF/origin checks, expiration without sleeps, current
+role/status, default route protection, storage failures, and shared account/source/
+admission limits. Cleanup tests bound both tables' deletion batches. The final
+suite passed after correcting health-route path handling and suppressing a second
+response attempt from session failure callbacks. No existing assertions were weakened.
+
+The curl walkthrough above was executed against the compiled API on a separate
+random development database, with only its ephemeral port substituted. Observed:
+CSRF 200, login 200 with session/token rotation, identity 200, current-token 200,
+logout 204, identity 401, and fresh-token repeated logout 204. The API completed
+SIGTERM shutdown, and captured logs contained no test passwords/hashes or CSRF
+tokens. All generated databases, temporary credential/cookie/token files, and
+isolated Compose resources were removed; local `.env` was unchanged. Results are
+local, not hosted CI or browser SameSite verification.
+
+### Publication review
+
+The 2026-10-19 review reproduced two persistence failures before fixing them:
+a transient explicit login-save failure could be retried automatically at response
+end, and a delayed duplicate save could recreate a session revoked by another
+instance. Regression tests now reject both behaviors and cover an HTTP identity
+request whose renewal follows concurrent logout. The two affected PostgreSQL
+integration suites passed all 35 tests using the pinned toolchain and a disposable
+Compose server. The previous full-suite record above remains separate evidence;
+the publication review did not repeat unrelated local suites. Formatting, lint,
+and typecheck also passed after the fix.
+
+Local Gitleaks 8.30.1 (official release with verified SHA-256) found no leaks in
+reachable Git history or a snapshot of tracked files. Targeted inspection also
+checked reachable blobs for credential URLs, literal secret assignments, private
+keys, and common service-token formats. Candidates were placeholders or synthetic
+test fixtures. No repository content was uploaded and no secret values were printed.
+This does not prove the absence of every possible secret; ignored local files,
+unreachable objects, external logs/artifacts, and remote-only refs were not scanned.

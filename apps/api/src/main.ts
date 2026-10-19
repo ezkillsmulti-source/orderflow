@@ -2,12 +2,14 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { readEnvironment, type Environment } from './config/environment.js';
+import { readAuthConfiguration } from './auth/auth.configuration.js';
 
 async function bootstrap(): Promise<void> {
   // Validate before Nest starts logging; invalid values are never echoed.
   let environment: Environment;
   try {
     environment = readEnvironment(process.env);
+    readAuthConfiguration(process.env);
   } catch (error) {
     // readEnvironment throws fixed field descriptions, never input values.
     console.error(`API startup failed: ${(error as Error).message}`);
