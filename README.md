@@ -3,7 +3,10 @@
 OrderFlow is a planned application for small businesses to manage products,
 inventory, and orders. The backend foundation is implemented: a NestJS API,
 PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
-and a GitHub Actions workflow. Business features and the frontend are planned.
+and a GitHub Actions workflow. User persistence with normalized unique emails and
+ADMIN/OPERATOR roles, Argon2id password hashing, and explicit development account
+provisioning are implemented. Authentication endpoints, sessions, CSRF, business
+features, and the frontend are planned.
 
 ## Local setup
 
@@ -33,6 +36,12 @@ Readiness returns HTTP 503 and `{"status":"not_ready"}` when PostgreSQL is
 unavailable; liveness stays independent. Use Ctrl-C to stop the API. For compiled
 execution, run `pnpm build` then `pnpm --filter @orderflow/api start`.
 
+To provision development users, configure NODE_ENV=development, DEV_ADMIN_EMAIL,
+DEV_ADMIN_PASSWORD, DEV_OPERATOR_EMAIL, and DEV_OPERATOR_PASSWORD locally, then
+run `pnpm users:provision:dev` after migrations. See the [manual provisioning
+procedure](docs/development.md#development-account-provisioning) for credential
+handling, repeat behavior, and conflicts. Provisioning is never automatic.
+
 ## Verification
 
 ```bash
@@ -52,8 +61,8 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 
 ## Scope and documents
 
-There is no frontend, authentication, product CRUD, inventory, ordering, Redis,
-worker, or deployment yet. The Product table alone does not implement catalog
+There is no frontend, login/session/CSRF implementation, product CRUD, inventory,
+ordering, Redis, worker, or deployment yet. The Product table alone does not implement catalog
 business behavior. The planned stack adds React/Vite and browser testing when the
 frontend is introduced, and background processing only when needed.
 

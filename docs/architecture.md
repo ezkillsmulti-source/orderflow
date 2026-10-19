@@ -38,7 +38,19 @@ and updates `updatedAt`; direct SQL writers must supply IDs and update timestamp
 The SQL migration adds the price check constraint that Prisma schema syntax cannot
 represent. Future migrations must preserve it.
 
-There are no product endpoints, authentication, inventory, orders, frontend,
+The User table adds UUID identities, normalized unique emails, password hashes,
+explicit ADMIN/OPERATOR roles, active status, and timestamps. The email policy and
+database constraints are recorded in [ADR 0003](decisions/0003-user-accounts.md).
+Hashes remain internal; no user HTTP representations exist.
+
+`PasswordService` is a small internal class using Argon2id through node-argon2.
+The explicit provisioning CLI uses Prisma directly and imports the shared email
+and password rules; it does not start Nest or listen on a port. One serializable
+transaction creates or validates the two development accounts. Its only result is
+created/unchanged counts. There is no generic user repository or additional service
+process; an HTTP auth module can be added when endpoints need it.
+
+There are no product endpoints, authentication endpoints, inventory, orders, frontend,
 Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
 for runtime, schema, and serialization choices.

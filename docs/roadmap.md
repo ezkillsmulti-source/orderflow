@@ -1,8 +1,8 @@
 # Roadmap
 
-Milestone 1 now targets the backend foundation only. The frontend originally
-included in that milestone is deferred by the revised scope. Later milestones
-remain planned; no first-release business behavior is implemented. The
+Milestone 1 targets the backend foundation only. The frontend originally
+included in that milestone is deferred by the revised scope. Milestone 2 has user
+account groundwork; its remaining features and later milestones are planned. The
 [product scope](product-scope.md) remains the source of business rules.
 
 ## 1. Reproducible backend foundation
@@ -19,6 +19,11 @@ the guide links the specific CI run, and PR checks show results for later commit
 No frontend, authentication, business endpoints, Redis, or worker is included.
 
 ## 2. Authenticated product catalog
+
+Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles,
+normalized email uniqueness, Argon2id password hashing, and explicit development
+provisioning. Authentication endpoints, sessions, CSRF, authorization enforcement,
+and catalog endpoints remain pending.
 
 Deliver development-seeded accounts, server-side sessions with an HttpOnly cookie,
 CSRF protection, backend authorization, and product creation, editing, archiving,

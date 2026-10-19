@@ -2,4 +2,5 @@ packages:
   - apps/api
 onlyBuiltDependencies:
   - '@prisma/engines'
+  - argon2
   - prisma
