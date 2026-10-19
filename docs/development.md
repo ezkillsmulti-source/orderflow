@@ -86,8 +86,63 @@ For an intentional schema change, edit `apps/api/prisma/schema.prisma` and run
 database. Prisma's development migration command needs permission to create a
 shadow database and may propose resets: do not accept resets against valued data.
 Review generated SQL, preserve custom constraints, and commit schema and migration
-together. Use migrations, not `db push`, for normal setup. There are no seed users.
+together. Use migrations, not `db push`, for normal setup. Migrations create no users.
 See [ADR 0002](decisions/0002-product-storage.md) for BIGINT and JSON boundaries.
+
+## Development account provisioning
+
+After starting the dedicated local PostgreSQL server, install dependencies and
+apply migrations from the root:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm db:migrate
+```
+
+Edit your existing local `.env` without replacing other settings. Add these
+variables using your own credentials; `.env.example` contains placeholders only:
+
+```dotenv
+NODE_ENV=development
+DEV_ADMIN_EMAIL=admin@example.test
+DEV_ADMIN_PASSWORD=replace_with_a_unique_admin_passphrase
+DEV_OPERATOR_EMAIL=operator@example.test
+DEV_OPERATOR_PASSWORD=replace_with_a_unique_operator_passphrase
+```
+
+Replace both password placeholders before proceeding. Use quotes in `.env` when
+values contain whitespace or `#`; passwords are never trimmed or normalized.
+They must be well-formed Unicode, 15–128 code points, at most 512 UTF-8 bytes.
+Use two distinct normalized email addresses. Emails are trimmed and lowercased;
+supported syntax, limits, and the absence of provider-specific transformations are
+documented in [ADR 0003](decisions/0003-user-accounts.md).
+
+Confirm DATABASE_URL points to the intended **development** database, then run:
+
+```bash
+pnpm users:provision:dev
+```
+
+This builds the CLI and loads root `.env` using Node, with shell variables taking
+precedence. It requires NODE_ENV to equal `development` exactly; unset, test, and
+production modes fail. The guard does not identify a production server for you.
+Do not put passwords on command lines, commit `.env`, or copy real credentials to
+documentation. The command prints only created/unchanged counts, with no email,
+password, or hash. Failures return a nonzero exit code with fixed diagnostic text.
+
+The command creates one active ADMIN and one active OPERATOR in a single
+transaction. Repeating with matching role, active status, and password leaves
+existing rows (including password hashes and timestamps) untouched. An existing
+account with a different password/role, inactive status, or an unusable hash causes
+the entire pair to fail; a newly created companion account is rolled back. No
+account is silently reset, reactivated, or elevated. Inspect conflicts with a
+trusted database tool and resolve account management deliberately; this command is
+not a reset tool. Concurrent invocations retry uniqueness/serialization conflicts
+up to three attempts; an exhausted retry fails safely and can be rerun.
+
+Provisioning never runs during API startup or migrations. Login endpoints,
+sessions, CSRF, password recovery, and production account provisioning are pending.
 
 ## Checks and isolation
 
@@ -110,14 +165,20 @@ Its role needs CREATEDB and permission to terminate its own test connections.
 The example local PostgreSQL image creates a superuser suitable only for local
 work, not production.
 
-The integration suite creates a random `orderflow_test_*` database, overrides
-DATABASE_URL only for its migration subprocesses and application instance, applies
-migrations twice, tests real readiness, monetary constraints, uniqueness, and
-outage/recovery, then drops only that generated database. It never migrates or
-resets the database named in TEST_DATABASE_ADMIN_URL. Use a dedicated server
+The integration suites create random `orderflow_test_*` databases, override
+DATABASE_URL only for their migration subprocesses and application instances, apply
+migrations twice, test real readiness, monetary constraints, uniqueness, and
+outage/recovery, then drop only their generated databases. They never migrate or
+reset the database named in TEST_DATABASE_ADMIN_URL. Use a dedicated server
 because the suite has database creation/deletion privileges. A killed test process
 may leave a random test database; inspect its name before removing it manually.
 Missing test configuration fails rather than silently skipping integration tests.
+
+User integration tests exercise the full migration history on a fresh database,
+an upgrade from the original Product-only history preserving Product data and its
+price constraint, PostgreSQL email/role constraints, and development provisioning
+(including rollback, conflicts, concurrency, and the CLI). Each suite drops only
+its generated databases. Temporary migration configurations are removed as well.
 
 CI uses a fresh PostgreSQL service and the same commands, with read-only repository
 permissions. A local pass does not establish that GitHub Actions passed.
@@ -177,3 +238,22 @@ configuration was removed and local `.env` was untouched.
 Hosted [CI run 39298019283](https://github.com/ezkillsmulti-source/orderflow/actions/runs/39298019283)
 also completed successfully for foundation commit `e42db66`. This records that
 specific run; consult the PR checks for results on subsequent commits.
+
+## User account verification record
+
+On 2026-10-19, with Node.js 24.22.0 and pnpm 10.34.7, frozen installation,
+Prisma schema validation, formatting, lint, typecheck, 53 unit/HTTP tests, 25
+integration tests, and build passed locally. The integration tests used a unique
+Compose project with PostgreSQL 17.6, temporary credentials, and a dynamically
+assigned loopback port. They covered fresh migrations, a Product-preserving
+upgrade, normalized uniqueness, role constraints, password verification, and
+atomic/repeatable/concurrent development provisioning.
+
+The documented root `pnpm db:migrate` and `pnpm users:provision:dev` commands were
+also exercised on a separate random database. Provisioning created two accounts,
+then reported two unchanged accounts with identical stored fields on repetition.
+Production mode returned a nonzero exit code without mutations. Captured output
+contained no generated passwords or stored hashes. No local `.env` was changed.
+All generated test databases, project containers, network, volume, and temporary
+configuration were removed. These are local results; this branch has not been
+pushed and no hosted check is claimed for it.

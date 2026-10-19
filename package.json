@@ -17,7 +17,8 @@
     "test:integration": "pnpm --filter @orderflow/api test:integration",
     "db:generate": "pnpm --filter @orderflow/api db:generate",
     "db:migrate": "pnpm --filter @orderflow/api db:migrate",
-    "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev"
+    "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev",
+    "users:provision:dev": "pnpm --filter @orderflow/api users:provision:dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

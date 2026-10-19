@@ -187,8 +187,10 @@ are outside the current architecture direction.
 
 ## Unresolved product decisions
 
-- During authentication, choose the session store, session lifetimes/timeouts,
-  credential policy, and seed mechanics. Define production account provisioning
+- User identity/email policy, password hashing/bounds, and explicit development
+  provisioning are implemented in [ADR 0003](decisions/0003-user-accounts.md).
+  During authentication, choose the session store, session lifetimes/timeouts,
+  and remaining login security controls. Define production account provisioning
   and whether role management needs an administrator interface.
 - Initial product storage uses bounded PostgreSQL BIGINT and Prisma bigint.
   [ADR 0002](decisions/0002-product-storage.md) selects decimal strings for future
