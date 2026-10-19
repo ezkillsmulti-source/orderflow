@@ -7,9 +7,13 @@
     "pnpm": "10.34.7"
   },
   "scripts": {
+    "dev": "pnpm --filter @orderflow/api dev",
+    "build": "pnpm --filter @orderflow/api build",
+    "typecheck": "pnpm --filter @orderflow/api typecheck",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @orderflow/api test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

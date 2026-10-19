@@ -1,46 +1,26 @@
 # OrderFlow
 
-OrderFlow is a planned web application for small businesses to manage products,
-inventory, and orders. It aims to replace disconnected records with a consistent
-view of available stock and the orders reserving it.
+OrderFlow is a planned product, inventory, and order application. Workspace tooling
+and the NestJS bootstrap are implemented. There are no application routes yet;
+PostgreSQL persistence and health checks are the next foundation tasks.
 
-The first release supports one business. Administrators manage products, inventory
-adjustments, and all orders. Operators read products and available stock, create
-orders, and view or cancel only their own orders. The
-[product scope](docs/product-scope.md) defines the full rules.
+Use Node.js 24.22.0 and pnpm 10.34.7. From the repository root:
 
-The planned first release uses archived products, ARS prices in integer minor
-units, atomic stock reservations, and idempotent order creation and cancellation.
-Accounts will initially come from a development seed; authentication will use
-server-side sessions with an HttpOnly cookie and CSRF protection.
+```bash
+pnpm install --frozen-lockfile
+DATABASE_URL=postgresql://test:placeholder@127.0.0.1:5432/test pnpm dev
+```
 
-This portfolio project is intended to demonstrate practical backend engineering:
-delivering business behavior, documenting decisions, testing correctness, and
-operating an application.
+This bootstrap validates DATABASE_URL and PORT but does not connect to a database.
+Unknown routes return 404. Stop with Ctrl-C.
 
-## Status
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
-Application implementation has not started. The repository contains planning
-and contribution documentation plus pinned workspace tooling. See
-[development](docs/development.md) for installation and formatting/lint checks.
-There is no application or deployment yet.
-
-## Planned stack and architecture
-
-- TypeScript and Node.js with NestJS for the backend.
-- PostgreSQL with Prisma for persistence.
-- React with Vite for the frontend.
-- Jest/Supertest for backend tests and Playwright for browser tests.
-- Docker Compose and Nginx for the runtime environment.
-- GitHub Actions for automated verification.
-- Redis and BullMQ when a later milestone introduces background processing.
-
-Start with a modular monolith. Add a worker only when background processing is
-needed; microservices and speculative infrastructure are outside the plan.
-
-## Project documents
-
-- [Product scope, business rules, and unresolved decisions](docs/product-scope.md)
-- [Incremental roadmap and completion criteria](docs/roadmap.md)
-- [Contribution workflow](CONTRIBUTING.md)
-- [Instructions for coding agents](AGENTS.md)
+See [development](docs/development.md), [architecture](docs/architecture.md),
+[product scope](docs/product-scope.md), and [contribution policy](CONTRIBUTING.md).

@@ -1,0 +1,27 @@
+{
+  "name": "@orderflow/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm build && concurrently --kill-others \"tsc -p tsconfig.build.json --watch\" \"node --watch --env-file-if-exists=../../.env dist/src/main.js\"",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=../../.env dist/src/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "12.2.0",
+    "@nestjs/core": "12.2.0",
+    "@nestjs/platform-express": "12.2.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "30.5.2",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.10.1",
+    "concurrently": "9.2.1",
+    "jest": "30.5.2"
+  }
+}

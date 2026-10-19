@@ -1,7 +1,8 @@
 # Roadmap
 
-All milestones are planned. Implementation has not started. Each milestone builds
-on the previous result and must include relevant documentation and verification.
+Milestone 1 is in progress: workspace tooling and the API bootstrap are implemented.
+Persistence and health checks are pending. Later milestones remain planned.
+Each milestone must include relevant documentation and verification.
 The [product scope](product-scope.md) is the source of business rules and open
 decisions; resolve decisions needed by a milestone before implementing it.
 

@@ -19,5 +19,7 @@
 - Follow the task-focused commit policy in `CONTRIBUTING.md#task-focused-commits`.
 - Do not commit or push unless explicitly instructed.
 
-Implementation has not started. The initial task is documentation only; do not
-scaffold the application or install dependencies without a subsequent request.
+The NestJS bootstrap is implemented in `apps/api`; persistence and health are pending.
+Use Node from `.nvmrc` and pnpm from `packageManager`. Run from the root:
+`pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test`, and `pnpm build`. See `docs/development.md` for configuration.
