@@ -156,3 +156,118 @@ test('loading is announced while an explicit refresh is pending', async ({
     page.getByRole('heading', { name: 'No products to show' }),
   ).toBeVisible();
 });
+
+test('keyboard pagination retains focus through loading, boundaries and read failures', async ({
+  page,
+  database,
+}) => {
+  for (let index = 0; index < 21; index++)
+    await database.query(
+      'INSERT INTO "Product" (id,sku,name,"priceMinor","createdAt","updatedAt") VALUES ($1,$2,$3,0,$4,$4)',
+      [
+        randomUUID(),
+        `PAGE-${index}`,
+        `Page coffee ${index}`,
+        new Date(1700000000000 + index),
+      ],
+    );
+  await signIn(page, 'OPERATOR');
+  await page.getByLabel('Products per page').selectOption('10');
+  await expect(page.getByText('Showing 1–10', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Page coffee 0', exact: true }),
+  ).toBeVisible();
+  let release!: () => void;
+  let arrived!: () => void;
+  let reads = 0;
+  let fail = false;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    arrived = resolve;
+  });
+  await page.route('**/api/products?*', async (route) => {
+    reads++;
+    if (reads === 1) {
+      arrived();
+      await gate;
+    }
+    if (fail)
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: '{}',
+      });
+    else await route.continue();
+  });
+  const next = page.getByRole('button', { name: 'Next', exact: true });
+  const previous = page.getByRole('button', { name: 'Previous', exact: true });
+  await next.focus();
+  await page.keyboard.press('Enter');
+  await started;
+  try {
+    await expect(next).toBeFocused();
+    await expect(next).toBeDisabled();
+    await textContrast(next);
+    await boundaryContrast(next, 'outlineColor');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(
+      (url) =>
+        new URLSearchParams(url.hash.split('?')[1]).get('offset') === '10',
+    );
+    expect(reads).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByText('Showing 11–20', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Page coffee 10', exact: true }),
+  ).toBeVisible();
+  await expect(next).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Showing 21–21', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Page coffee 20', exact: true }),
+  ).toBeVisible();
+  await expect(next).toBeFocused();
+  await expect(next).toBeDisabled();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(
+    (url) => new URLSearchParams(url.hash.split('?')[1]).get('offset') === '20',
+  );
+  expect(reads).toBe(2);
+  await previous.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Showing 11–20', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Page coffee 10', exact: true }),
+  ).toBeVisible();
+  await expect(previous).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Showing 1–10', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View Page coffee 0', exact: true }),
+  ).toBeVisible();
+  await expect(previous).toBeFocused();
+  await expect(previous).toBeDisabled();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(
+    (url) => new URLSearchParams(url.hash.split('?')[1]).get('offset') === '0',
+  );
+  expect(reads).toBe(4);
+  await expect(next).toBeEnabled();
+  fail = true;
+  await next.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText(
+    'temporarily unavailable',
+  );
+  await expect(next).toBeFocused();
+  await expect(next).toBeDisabled();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(
+    (url) => new URLSearchParams(url.hash.split('?')[1]).get('offset') === '10',
+  );
+  expect(reads).toBe(5);
+});

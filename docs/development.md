@@ -830,3 +830,20 @@ roles. Use Ctrl-C in each terminal to stop the API/frontend; use
 `docker compose stop postgres` to stop the local database without removing its volume.
 For a fresh configuration only, follow [Development account provisioning](#development-account-provisioning)
 explicitly; existing account credentials and roles are never silently reset.
+
+### Product workspace publication review — 2026-10-19
+
+Review reproduced lost keyboard focus in pagination: results loading removed the
+Previous/Next buttons. They now stay mounted, expose guarded aria-disabled states,
+and retain focus through loading, first/last-page boundaries, and read failures.
+The regression gates the real API request, checks returned page content before the
+next action, and verifies inactive keyboard activation sends no extra reads.
+
+Focused verification passed: formatting, lint, web TypeScript/Vite build, two token
+contrast tests, and eight real-API Chromium browser checks across desktop/mobile
+(pagination regression, bounded browsing, keyboard filters, and explicit loading).
+Review used a new PostgreSQL container with random migrated databases, a random API
+port, and Vite on 127.0.0.1:5183; it did not reuse or modify the manual preview.
+The complete local suite was not repeated. Existing hosted CI retains the complete
+backend/frontend and browser checks. User feedback is recorded separately in the
+[design guide](ui-design.md#review-feedback), not counted as an additional test run.

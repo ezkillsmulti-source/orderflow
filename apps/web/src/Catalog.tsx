@@ -227,6 +227,11 @@ function ProductList({
   function change(next: Page) {
     navigate(listLink(next));
   }
+  const previousUnavailable = !state.data || page.offset === 0;
+  const nextUnavailable =
+    !state.data ||
+    !state.data.pagination.hasMore ||
+    page.offset + page.limit > 10000;
   const title =
     page.status === 'all'
       ? 'All products'
@@ -432,45 +437,47 @@ function ProductList({
                 </p>
               </WorkspaceState>
             )}
-            <div className="row between pagination">
-              <p className="help" role="status">
-                {state.data.items.length
-                  ? `Showing ${page.offset + 1}–${page.offset + state.data.items.length}`
-                  : 'This page is empty.'}
-              </p>
-              <nav className="row" aria-label="Product pages">
-                <button
-                  disabled={page.offset === 0}
-                  onClick={() =>
-                    change({
-                      ...page,
-                      offset: Math.max(0, page.offset - page.limit),
-                    })
-                  }
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={
-                    !state.data.pagination.hasMore ||
-                    page.offset + page.limit > 10000
-                  }
-                  onClick={() =>
-                    change({ ...page, offset: page.offset + page.limit })
-                  }
-                >
-                  Next
-                </button>
-              </nav>
-            </div>
-            {state.data.pagination.hasMore &&
-              page.offset + page.limit > 10000 && (
-                <p className="pagination-limit">
-                  The catalog navigation limit has been reached. Choose a status
-                  filter to narrow the list.
-                </p>
-              )}
           </>
+        )}
+        <div className="row between pagination">
+          <p className="help" role="status">
+            {state.data
+              ? state.data.items.length
+                ? `Showing ${page.offset + 1}–${page.offset + state.data.items.length}`
+                : 'This page is empty.'
+              : state.error
+                ? 'Page unavailable.'
+                : ''}
+          </p>
+          <nav className="row" aria-label="Product pages">
+            <button
+              aria-disabled={previousUnavailable}
+              onClick={() => {
+                if (!previousUnavailable)
+                  change({
+                    ...page,
+                    offset: Math.max(0, page.offset - page.limit),
+                  });
+              }}
+            >
+              Previous
+            </button>
+            <button
+              aria-disabled={nextUnavailable}
+              onClick={() => {
+                if (!nextUnavailable)
+                  change({ ...page, offset: page.offset + page.limit });
+              }}
+            >
+              Next
+            </button>
+          </nav>
+        </div>
+        {state.data?.pagination.hasMore && page.offset + page.limit > 10000 && (
+          <p className="pagination-limit">
+            The catalog navigation limit has been reached. Choose a status
+            filter to narrow the list.
+          </p>
         )}
       </section>
     </>

@@ -28,6 +28,10 @@ unavailable, forbidden, missing, and invalid-link states have distinct headings.
 
 Query-only navigation retains focus on filters/page controls; changing screen paths
 moves focus to the destination heading. Native radio arrow keys remain usable.
+Pagination buttons stay mounted and focusable while results load, at page boundaries,
+and after read failures. They expose aria-disabled and guard activation until a valid
+page allows the requested move. This preserves keyboard position without allowing
+extra requests or exceeding bounds. No row range is shown while results are unavailable.
 Detail and form pages retain hash routes and browser history rather than introducing
 drawers or nested dialogs. Full pages leave room for long product names, maximum prices, and validation feedback on mobile.
 Only archival uses a native modal confirmation.
@@ -143,3 +147,10 @@ for every browser/device, or production hosting.
 
 No applicable frontend-design/UI/UX skill was available in this environment. The
 implementation uses local code, Playwright, and W3C references; no skill was installed.
+
+## Review feedback
+
+The user inspected the isolated local preview and reported that the design looks
+good and works correctly. This is user feedback from manual use, recorded separately
+from the automated verification above; it is not an additional test run, a complete
+acceptance audit, or proof of accessibility compliance.
