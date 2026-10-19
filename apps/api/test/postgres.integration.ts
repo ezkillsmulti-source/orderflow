@@ -82,7 +82,7 @@ describe('real PostgreSQL foundation', () => {
     const migrations = await database.client.$queryRaw<
       { count: bigint }[]
     >`SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`;
-    expect(migrations[0]?.count).toBe(3n);
+    expect(migrations[0]?.count).toBe(4n);
   });
 
   it('persists exact monetary boundaries, defaults, uniqueness, and updates', async () => {

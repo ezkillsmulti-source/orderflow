@@ -17,6 +17,7 @@ import {
   IDLE_LIFETIME_MS,
 } from './auth.configuration.js';
 import './session.types.js';
+import { isHealthRequest } from './http-path.js';
 
 @Injectable()
 export class SessionRuntime implements OnApplicationShutdown {
@@ -72,7 +73,7 @@ export class SessionRuntime implements OnApplicationShutdown {
       },
     });
     this.middleware = (req, res, next) => {
-      if (req.path === '/health/live' || req.path === '/health/ready') {
+      if (isHealthRequest(req)) {
         next();
         return;
       }
@@ -84,6 +85,7 @@ export class SessionRuntime implements OnApplicationShutdown {
         return;
       }
       load(req, res, (error) => {
+        if (res.headersSent) return;
         if (error) {
           this.unavailable(res);
           return;
@@ -97,6 +99,7 @@ export class SessionRuntime implements OnApplicationShutdown {
   }
 
   private unavailable(res: Response): void {
+    if (res.headersSent) return;
     res.status(503).json({
       statusCode: 503,
       message: 'Authentication storage unavailable.',
@@ -197,6 +200,12 @@ export class SessionRuntime implements OnApplicationShutdown {
     await this.pool.query(`DELETE FROM http_session WHERE sid IN (
       SELECT sid FROM http_session WHERE expire < CURRENT_TIMESTAMP
       ORDER BY expire LIMIT 500 FOR UPDATE SKIP LOCKED)`);
+    await this.pool.query(
+      `DELETE FROM login_limit WHERE key IN (
+      SELECT key FROM login_limit WHERE expire < $1
+      ORDER BY expire LIMIT 500 FOR UPDATE SKIP LOCKED)`,
+      [Date.now()],
+    );
   }
 
   private scheduleCleanup(): void {

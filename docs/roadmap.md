@@ -22,9 +22,10 @@ No frontend, authentication, business endpoints, Redis, or worker is included.
 
 Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles,
 normalized email uniqueness, Argon2id password hashing, and explicit development
-provisioning, and PostgreSQL session infrastructure. Authentication endpoints,
-CSRF, authorization enforcement,
-and catalog endpoints remain pending.
+provisioning, PostgreSQL-backed sessions with idle/absolute expiry, CSRF/origin
+protection, login/me/logout endpoints, current-user authentication, and shared
+login throttling. Business role/ownership authorization and catalog endpoints
+remain pending; the milestone is not complete.
 
 Deliver development-seeded accounts, server-side sessions with an HttpOnly cookie,
 CSRF protection, backend authorization, and product creation, editing, archiving,

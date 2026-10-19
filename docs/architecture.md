@@ -6,16 +6,20 @@ repository layer or shared workspace package.
 
 ## Current modules
 
-- `AppModule` composes configuration and health.
+- `AppModule` composes configuration, health, and authentication.
 - `ConfigModule` validates the database URL and API port, exposing one configuration
   provider. Invalid configuration prevents startup; values are not printed.
 - `DatabaseModule` owns one Prisma client and its PostgreSQL driver adapter. The
   pool is lazy: an unavailable database does not prevent liveness from starting.
   Nest shutdown hooks disconnect the client and release the adapter's pool.
-- `HealthModule` exposes the only two HTTP routes.
-- `SessionModule` installs express-session with a PostgreSQL store for non-health
-  routes. It manages bounded expired-session cleanup and closes its separate,
+- `HealthModule` exposes two public health routes, outside the session pipeline.
+- `SessionModule` provides express-session with a PostgreSQL store for non-health
+  routes. It manages bounded expired-session/limiter cleanup and closes its separate,
   bounded pool on shutdown. Configuration and lifetimes are in [ADR 0004](decisions/0004-session-authentication.md).
+- `AuthModule` installs session loading before origin/CSRF/shared-admission checks,
+  exposes CSRF/login/me/logout, and registers a default authentication guard.
+  Protected routes read current User status and role. A fixed-response exception
+  filter prevents parser and infrastructure details from echoing input or being logged.
 
 `GET /health/live` returns HTTP 200 and `{"status":"ok"}` without accessing the
 pool. `GET /health/ready` runs `SELECT 1` through Prisma and returns the same success
@@ -51,9 +55,15 @@ The explicit provisioning CLI uses Prisma directly and imports the shared email
 and password rules; it does not start Nest or listen on a port. One serializable
 transaction creates or validates the two development accounts. Its only result is
 created/unchanged counts. There is no generic user repository or additional service
-process; an HTTP auth module can be added when endpoints need it.
+process. The auth module uses direct Prisma access and the same password rules.
 
-There are no product endpoints, authentication endpoints, inventory, orders, frontend,
+Sessions use express-session identifiers/signatures and connect-pg-simple storage.
+csrf-sync binds tokens to session state. rate-limiter-flexible uses atomic shared
+PostgreSQL counters for source/account login limits and global admission. Automatic
+table creation and unbounded library cleanup are disabled; migrations create both
+tables. Store/counter failures return sanitized 503 with no in-memory fallback.
+
+There are no product endpoints, business authorization, inventory, orders, frontend,
 Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the [decisions](decisions/0001-backend-foundation.md)
 for runtime, schema, and serialization choices.

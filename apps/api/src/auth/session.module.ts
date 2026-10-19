@@ -1,9 +1,4 @@
-import {
-  Module,
-  type NestModule,
-  type MiddlewareConsumer,
-} from '@nestjs/common';
-import { HttpAdapterHost } from '@nestjs/core';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '../config/config.module.js';
 import {
   AUTH_CONFIGURATION,
@@ -22,15 +17,4 @@ import { SessionRuntime } from './session.runtime.js';
   ],
   exports: [SessionRuntime, AUTH_CONFIGURATION],
 })
-export class SessionModule implements NestModule {
-  constructor(
-    private readonly runtime: SessionRuntime,
-    private readonly adapter: HttpAdapterHost,
-  ) {}
-  configure(consumer: MiddlewareConsumer): void {
-    this.adapter.httpAdapter
-      .getInstance()
-      .set('trust proxy', this.runtime.configuration.trustProxy);
-    consumer.apply(this.runtime.middleware).forRoutes('{*path}');
-  }
-}
+export class SessionModule {}

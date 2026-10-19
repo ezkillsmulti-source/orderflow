@@ -41,3 +41,12 @@ model HttpSession {
   @@index([expire])
   @@map("http_session")
 }
+
+model LoginLimit {
+  key    String  @id @db.VarChar(255)
+  points Int     @default(0)
+  expire BigInt?
+
+  @@index([expire])
+  @@map("login_limit")
+}

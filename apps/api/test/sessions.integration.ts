@@ -7,7 +7,10 @@ import {
   Req,
   Res,
   type INestApplication,
+  type NestModule,
+  type MiddlewareConsumer,
 } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 import request from 'supertest';
@@ -44,7 +47,18 @@ class ProbeController {
   }
 }
 @Module({ imports: [SessionModule], controllers: [ProbeController] })
-class ProbeModule {}
+class ProbeModule implements NestModule {
+  constructor(
+    private readonly sessions: SessionRuntime,
+    private readonly adapter: HttpAdapterHost,
+  ) {}
+  configure(consumer: MiddlewareConsumer): void {
+    this.adapter.httpAdapter
+      .getInstance()
+      .set('trust proxy', this.sessions.configuration.trustProxy);
+    consumer.apply(this.sessions.middleware).forRoutes('{*path}');
+  }
+}
 
 let db: Awaited<ReturnType<typeof createTestDatabase>>;
 const apps: INestApplication[] = [];
@@ -198,6 +212,25 @@ describe('persistent session infrastructure', () => {
     expect(await db.client.httpSession.count()).toBe(2);
     expect(
       await db.client.httpSession.findUnique({ where: { sid: 'live' } }),
+    ).not.toBeNull();
+    await db.client.loginLimit.createMany({
+      data: Array.from({ length: 501 }, (_, index) => ({
+        key: `expired-${index}`,
+        points: 1,
+        expire: 0n,
+      })),
+    });
+    await db.client.loginLimit.create({
+      data: {
+        key: 'live-limit',
+        points: 1,
+        expire: BigInt(Date.now() + IDLE_LIFETIME_MS),
+      },
+    });
+    await apps[0]!.get(SessionRuntime).cleanupExpired();
+    expect(await db.client.loginLimit.count()).toBe(2);
+    expect(
+      await db.client.loginLimit.findUnique({ where: { key: 'live-limit' } }),
     ).not.toBeNull();
   });
   it('sets production cookie attributes and requires trusted HTTPS forwarding', async () => {

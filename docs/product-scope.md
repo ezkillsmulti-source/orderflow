@@ -46,7 +46,10 @@ not change business state. SameSite is defense in depth, not the only CSRF contr
 In production, require HTTPS and a Secure, HttpOnly, SameSite=Lax cookie with
 Path=/ and no Domain attribute, using the `__Host-` name prefix. Document trusted
 proxy configuration for TLS termination and never expose the session ID to
-frontend JavaScript. Session lifetime and timeout policies remain unresolved.
+frontend JavaScript. [ADR 0004](decisions/0004-session-authentication.md) implements
+PostgreSQL sessions, 30-minute idle/eight-hour absolute expiry, session-bound CSRF,
+trusted origins, and shared login throttling. Login, identity, and logout are
+implemented; business role/ownership authorization remains planned.
 
 ## First-release scope
 
@@ -60,7 +63,8 @@ frontend JavaScript. Session lifetime and timeout policies remain unresolved.
 - Backend role and ownership authorization according to the permission matrix.
 
 These behaviors are intended to be usable through the web application and enforced
-by the backend. They are planned requirements, not implemented features.
+by the backend. Authentication is implemented as described above; catalog,
+inventory, ordering, and frontend workflows remain planned requirements.
 
 ## Business rules
 
@@ -189,8 +193,8 @@ are outside the current architecture direction.
 
 - User identity/email policy, password hashing/bounds, and explicit development
   provisioning are implemented in [ADR 0003](decisions/0003-user-accounts.md).
-  During authentication, choose the session store, session lifetimes/timeouts,
-  and remaining login security controls. Define production account provisioning
+  [ADR 0004](decisions/0004-session-authentication.md) implements the session store,
+  lifetimes, CSRF/origin policy, and login limits. Define production account provisioning
   and whether role management needs an administrator interface.
 - Initial product storage uses bounded PostgreSQL BIGINT and Prisma bigint.
   [ADR 0002](decisions/0002-product-storage.md) selects decimal strings for future
