@@ -13,7 +13,11 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm --filter @orderflow/api test"
+    "test": "pnpm --filter @orderflow/api test",
+    "test:integration": "pnpm --filter @orderflow/api test:integration",
+    "db:generate": "pnpm --filter @orderflow/api db:generate",
+    "db:migrate": "pnpm --filter @orderflow/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

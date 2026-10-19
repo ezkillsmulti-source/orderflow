@@ -1,26 +1,67 @@
 # OrderFlow
 
-OrderFlow is a planned product, inventory, and order application. Workspace tooling
-and the NestJS bootstrap are implemented. There are no application routes yet;
-PostgreSQL persistence and health checks are the next foundation tasks.
+OrderFlow is a planned application for small businesses to manage products,
+inventory, and orders. The backend foundation is implemented: a NestJS API,
+PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
+and reproducible local checks. The GitHub Actions workflow, business features,
+and frontend are pending.
 
-Use Node.js 24.22.0 and pnpm 10.34.7. From the repository root:
+## Local setup
+
+Requirements: Node.js **24.22.0 LTS**, pnpm **10.34.7**, and Docker with Compose v2
+supporting `up --wait`. See [development](docs/development.md) for installing the
+pinned toolchain and configuration details. From the repository root:
 
 ```bash
+test -e .env || cp .env.example .env
+# Replace the local password consistently in .env before starting PostgreSQL.
 pnpm install --frozen-lockfile
-DATABASE_URL=postgresql://test:placeholder@127.0.0.1:5432/test pnpm dev
+docker compose up -d --wait postgres
+pnpm db:generate
+pnpm db:migrate
+pnpm dev
 ```
 
-This bootstrap validates DATABASE_URL and PORT but does not connect to a database.
-Unknown routes return 404. Stop with Ctrl-C.
+In another terminal:
+
+```bash
+curl --fail http://127.0.0.1:3000/health/live
+curl --fail http://127.0.0.1:3000/health/ready
+```
+
+Both return `{"status":"ok"}` with HTTP 200 when PostgreSQL is available.
+Readiness returns HTTP 503 and `{"status":"not_ready"}` when PostgreSQL is
+unavailable; liveness stays independent. Use Ctrl-C to stop the API. For compiled
+execution, run `pnpm build` then `pnpm --filter @orderflow/api start`.
+
+## Verification
 
 ```bash
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:integration
 pnpm build
 ```
 
-See [development](docs/development.md), [architecture](docs/architecture.md),
-[product scope](docs/product-scope.md), and [contribution policy](CONTRIBUTING.md).
+Integration checks require TEST_DATABASE_ADMIN_URL from `.env` and create/drop a
+random database on the dedicated local PostgreSQL server. They never use the
+application database. See [development](docs/development.md) for isolation,
+migrations, shutdown, and troubleshooting. The planned CI workflow will run these checks on pull requests and pushes to
+`main`; hosted execution is pending.
+
+## Scope and documents
+
+There is no frontend, authentication, product CRUD, inventory, ordering, Redis,
+worker, or deployment yet. The Product table alone does not implement catalog
+business behavior. The planned stack adds React/Vite and browser testing when the
+frontend is introduced, and background processing only when needed.
+
+- [Product scope and business rules](docs/product-scope.md)
+- [Roadmap and current progress](docs/roadmap.md)
+- [Current architecture](docs/architecture.md)
+- [Development workflow](docs/development.md)
+- [Architecture decisions](docs/decisions/0001-backend-foundation.md)
+- [Contributing](CONTRIBUTING.md)
+- [Instructions for coding agents](AGENTS.md)

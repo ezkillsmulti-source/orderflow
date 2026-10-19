@@ -190,10 +190,13 @@ are outside the current architecture direction.
 - During authentication, choose the session store, session lifetimes/timeouts,
   credential policy, and seed mechanics. Define production account provisioning
   and whether role management needs an administrator interface.
-- Choose exact database types and API integer serialization within the specified
-  bounds. First-release totals need no fractional rounding; later taxes, discounts,
-  and provider conversions need their own rounding policies.
-- Define ID formats, SKU normalization/case sensitivity, text length limits,
+- Initial product storage uses bounded PostgreSQL BIGINT and Prisma bigint.
+  [ADR 0002](decisions/0002-product-storage.md) selects decimal strings for future
+  JSON integer business values; no product API exists yet. Apply these decisions
+  to later quantities and totals. First-release totals need no fractional rounding;
+  later taxes, discounts, and provider conversions need their own rounding policies.
+- Product IDs use UUIDs and stored SKUs are currently case-sensitive. Define
+  other ID formats, SKU normalization/API case policy, text length limits,
   archive visibility, and whether products can be reactivated.
 - Define the adjustment-history interface and access policy.
 - Decide required customer information and list filters, sort fields, pagination

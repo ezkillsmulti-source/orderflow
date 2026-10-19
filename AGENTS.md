@@ -19,7 +19,12 @@
 - Follow the task-focused commit policy in `CONTRIBUTING.md#task-focused-commits`.
 - Do not commit or push unless explicitly instructed.
 
-The NestJS bootstrap is implemented in `apps/api`; persistence and health are pending.
-Use Node from `.nvmrc` and pnpm from `packageManager`. Run from the root:
+The backend foundation is implemented in `apps/api`; later features remain planned.
+Use Node from `.nvmrc` and pnpm from `packageManager`. Run commands from the root:
 `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
-`pnpm test`, and `pnpm build`. See `docs/development.md` for configuration.
+`pnpm test`, `pnpm test:integration`, and `pnpm build`.
+Integration tests require TEST_DATABASE_ADMIN_URL on a dedicated local/CI server
+and create/drop only a random test database. Never point tests at production.
+Use `pnpm db:migrate` for committed migrations, not `db push`. Preserve custom
+SQL constraints and review untracked migration files before staging.
+See `docs/development.md` for environment loading and migration authoring.
