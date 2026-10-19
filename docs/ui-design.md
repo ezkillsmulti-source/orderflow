@@ -17,8 +17,18 @@ signed-in email/role/logout. It reflows into labeled rows on narrow screens with
 hiding identity or actions. Login uses system sans-serif controls and a locally
 available Georgia editorial heading. Normal product screens use the system stack.
 
-The remaining workspace increments refine page title/actions, filters, results,
-pagination, details, and grouped forms. Detail and form pages retain hash routes
+Page title/actions, always-visible native status radios, page-size selection, and
+refresh precede a named results panel. Prices are right aligned with tabular digits;
+SKU uses a local monospace stack and wraps long values. Each row has a View action;
+ADMIN additionally sees Edit for active rows. There are no action menus. Pagination
+uses only the API's hasMore and visible row range, with the existing bounds. Empty
+states offer creation to ADMIN and real filter/refresh actions to both roles.
+OPERATOR has an explicit read-only label. Loading uses a static status indicator;
+unavailable, forbidden, missing, and invalid-link states have distinct headings.
+
+Query-only navigation retains focus on filters/page controls; changing screen paths
+moves focus to the destination heading. Native radio arrow keys remain usable.
+Details and grouped forms are refined in the remaining increment. Detail and form pages retain hash routes
 and browser history rather than introducing drawers or nested dialogs. Full pages
 leave room for long product names, maximum prices, and validation feedback on mobile.
 Only archival uses a native modal confirmation.

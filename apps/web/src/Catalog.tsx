@@ -12,6 +12,7 @@ import { ArchiveDialog } from './ArchiveDialog';
 import { EditProduct, ProductForm } from './ProductForm';
 import { useProduct } from './use-product';
 import { formatPrice } from './money';
+import { LoadingState, PageHeader, WorkspaceState } from './workspace';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#products');
@@ -20,7 +21,11 @@ function useHash() {
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
-  return hash;
+  function navigate(next: string) {
+    setHash(next);
+    window.location.hash = next;
+  }
+  return [hash, navigate] as const;
 }
 export function Status({ active }: { active: boolean }) {
   return (
@@ -31,16 +36,32 @@ export function Status({ active }: { active: boolean }) {
 }
 function ReadError({ error, retry }: { error: ApiError; retry: () => void }) {
   const blocked = useCooldown(error);
+  const title =
+    error.status === 404
+      ? 'Product not found'
+      : error.status === 403
+        ? 'Access restricted'
+        : error.status === 400
+          ? 'Check the catalog link'
+          : error.status === 429
+            ? 'Requests paused'
+            : 'Products unavailable';
   return (
-    <section className="card stack">
+    <WorkspaceState
+      title={title}
+      actions={
+        <>
+          {error.status !== 404 && (
+            <button onClick={retry} disabled={blocked}>
+              Try again
+            </button>
+          )}
+          <a href="#products">Back to products</a>
+        </>
+      }
+    >
       <ErrorNotice error={error} />
-      {error.status !== 404 && (
-        <button onClick={retry} disabled={blocked}>
-          Try again
-        </button>
-      )}
-      <a href="#products">Back to products</a>
-    </section>
+    </WorkspaceState>
   );
 }
 
@@ -130,11 +151,13 @@ function ProductList({
   back,
   remember,
   admin,
+  navigate,
 }: {
   page: Page;
   back: string;
   remember: (back: string) => void;
   admin: boolean;
+  navigate: (next: string) => void;
 }) {
   const [state, setState] = useState<{ data?: Listing; error?: ApiError }>({});
   const [revision, setRevision] = useState(0);
@@ -163,46 +186,63 @@ function ProductList({
     };
   }, [page.status, page.limit, page.offset, revision]);
   function change(next: Page) {
-    window.location.hash = listLink(next);
+    navigate(listLink(next));
   }
+  const title =
+    page.status === 'all'
+      ? 'All products'
+      : page.status === 'archived'
+        ? 'Archived products'
+        : 'Active products';
   return (
     <>
-      <div className="row between">
-        <div>
-          <p className="eyebrow">Workspace / Catalog</p>
-          <h1 tabIndex={-1}>Products</h1>
-          <p className="muted">A clear view of your catalog.</p>
-        </div>
-        {admin && (
-          <a
-            className="button primary"
-            href="#products/new"
-            onClick={() => remember(back)}
-          >
-            Create product
-          </a>
-        )}
-      </div>
-      <div className="toolbar">
-        <div className="field">
-          <label htmlFor="status">Product status</label>
-          <select
-            id="status"
-            value={page.status}
-            onChange={(event) =>
-              change({
-                ...page,
-                status: event.target.value as Page['status'],
-                offset: 0,
-              })
-            }
-          >
-            <option value="active">Active products</option>
-            <option value="archived">Archived products</option>
-            <option value="all">All products</option>
-          </select>
-        </div>
-        <div className="field">
+      <PageHeader
+        title="Products"
+        description={
+          admin
+            ? 'Manage the details, prices and records your team works with.'
+            : 'Browse your team’s catalog, including archived records.'
+        }
+        actions={
+          admin ? (
+            <a
+              className="button primary"
+              href="#products/new"
+              onClick={() => remember(back)}
+            >
+              <span aria-hidden="true">+</span>Create product
+            </a>
+          ) : (
+            <span className="read-only-label">Read-only access</span>
+          )
+        }
+      />
+      <div className="catalog-toolbar">
+        <fieldset className="status-filter">
+          <legend>Product status</legend>
+          <div className="filter-options">
+            {(['active', 'archived', 'all'] as const).map((status) => (
+              <label key={status}>
+                <input
+                  type="radio"
+                  name="product-status"
+                  value={status}
+                  checked={page.status === status}
+                  onChange={() => change({ ...page, status, offset: 0 })}
+                />
+                <span>
+                  {page.status === status && <span aria-hidden="true">✓ </span>}
+                  {status === 'all'
+                    ? 'All products'
+                    : status === 'active'
+                      ? 'Active'
+                      : 'Archived'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="field page-size">
           <label htmlFor="page-size">Products per page</label>
           <select
             id="page-size"
@@ -224,120 +264,188 @@ function ProductList({
           Refresh products
         </button>
       </div>
-      <p className="help mobile-hint">
-        Scroll the table horizontally to see all columns.
-      </p>
-      {state.error ? (
-        <ReadError
-          error={state.error}
-          retry={() => setRevision((value) => value + 1)}
-        />
-      ) : !state.data ? (
-        <p role="status">Loading products…</p>
-      ) : (
-        <>
-          {state.data.items.length ? (
-            <div
-              className="table-scroll"
-              role="region"
-              aria-label="Product catalog"
-              tabIndex={0}
-            >
-              <table>
-                <caption className="sr-only">
-                  Products in the selected status and page
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Product</th>
-                    <th scope="col">SKU</th>
-                    <th scope="col">Price (ARS)</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.data.items.map((data) => (
-                    <tr key={data.id}>
-                      <td>
-                        <a
-                          className="product-name"
-                          href={`#products/${data.id}`}
-                          onClick={() => remember(back)}
-                        >
-                          {data.name}
-                        </a>
-                      </td>
-                      <td>{data.sku}</td>
-                      <td className="price">{formatPrice(data.priceMinor)}</td>
-                      <td>
-                        <Status active={data.active} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <section className="card empty">
-              <h2>No products to show</h2>
-              <p className="muted">
-                Try another status filter or refresh the catalog.
-              </p>
-            </section>
-          )}
-          <div className="row between pagination">
-            <p className="help" role="status">
-              {state.data.items.length
-                ? `Showing ${page.offset + 1}–${page.offset + state.data.items.length}`
-                : 'This page is empty.'}
+      <section className="results-panel" aria-label="Product results">
+        <div className="results-heading">
+          <h2>{title}</h2>
+          {Boolean(state.data?.items.length) && (
+            <p className="help mobile-hint" id="table-scroll-help">
+              Scroll the table horizontally to see all columns.
             </p>
-            <nav className="row" aria-label="Product pages">
-              <button
-                disabled={page.offset === 0}
-                onClick={() =>
-                  change({
-                    ...page,
-                    offset: Math.max(0, page.offset - page.limit),
-                  })
+          )}
+        </div>
+        {state.error ? (
+          <ReadError
+            error={state.error}
+            retry={() => setRevision((value) => value + 1)}
+          />
+        ) : !state.data ? (
+          <LoadingState>Loading products…</LoadingState>
+        ) : (
+          <>
+            {state.data.items.length ? (
+              <div
+                className="table-scroll"
+                role="region"
+                aria-label="Product catalog"
+                aria-describedby="table-scroll-help"
+                tabIndex={0}
+              >
+                <table>
+                  <caption className="sr-only">
+                    {title}. Prices in Argentine pesos.
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Product name</th>
+                      <th scope="col">SKU</th>
+                      <th scope="col" className="price">
+                        Price (ARS)
+                      </th>
+                      <th scope="col">Status</th>
+                      <th scope="col" className="row-actions">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.data.items.map((data) => (
+                      <tr key={data.id}>
+                        <td className="name-cell">
+                          <a
+                            className="product-name"
+                            href={`#products/${data.id}`}
+                            onClick={() => remember(back)}
+                          >
+                            {data.name}
+                          </a>
+                        </td>
+                        <td className="sku-cell">
+                          <code>{data.sku}</code>
+                        </td>
+                        <td className="price">
+                          {formatPrice(data.priceMinor)}
+                        </td>
+                        <td>
+                          <Status active={data.active} />
+                        </td>
+                        <td>
+                          <div className="row row-actions">
+                            <a
+                              href={`#products/${data.id}`}
+                              aria-label={`View ${data.name}`}
+                              onClick={() => remember(back)}
+                            >
+                              View
+                            </a>
+                            {admin && data.active && (
+                              <a
+                                href={`#products/${data.id}/edit`}
+                                aria-label={`Edit ${data.name}`}
+                                onClick={() => remember(back)}
+                              >
+                                Edit
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <WorkspaceState
+                title={
+                  page.status === 'archived'
+                    ? 'No archived products'
+                    : 'No products to show'
+                }
+                actions={
+                  <>
+                    {admin && page.status !== 'archived' && (
+                      <a className="button primary" href="#products/new">
+                        Create a product
+                      </a>
+                    )}
+                    {page.status !== 'all' && (
+                      <a
+                        className="button"
+                        href={listLink({ ...page, status: 'all', offset: 0 })}
+                      >
+                        View all products
+                      </a>
+                    )}
+                    {page.status === 'all' && !admin && (
+                      <button onClick={() => setRevision((value) => value + 1)}>
+                        Check again
+                      </button>
+                    )}
+                  </>
                 }
               >
-                Previous
-              </button>
-              <button
-                disabled={
-                  !state.data.pagination.hasMore ||
-                  page.offset + page.limit > 10000
-                }
-                onClick={() =>
-                  change({ ...page, offset: page.offset + page.limit })
-                }
-              >
-                Next
-              </button>
-            </nav>
-          </div>
-          {state.data.pagination.hasMore &&
-            page.offset + page.limit > 10000 && (
-              <p className="notice">
-                The catalog navigation limit has been reached. Choose a status
-                filter to narrow the list.
-              </p>
+                <p>
+                  {page.status === 'archived'
+                    ? 'Archived products stay here for reference. You can read them at any time.'
+                    : admin
+                      ? 'Add a product to keep its name, SKU and price in one place, or choose another status filter.'
+                      : 'Choose another status filter or check back when your team adds products.'}
+                </p>
+              </WorkspaceState>
             )}
-        </>
-      )}
+            <div className="row between pagination">
+              <p className="help" role="status">
+                {state.data.items.length
+                  ? `Showing ${page.offset + 1}–${page.offset + state.data.items.length}`
+                  : 'This page is empty.'}
+              </p>
+              <nav className="row" aria-label="Product pages">
+                <button
+                  disabled={page.offset === 0}
+                  onClick={() =>
+                    change({
+                      ...page,
+                      offset: Math.max(0, page.offset - page.limit),
+                    })
+                  }
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={
+                    !state.data.pagination.hasMore ||
+                    page.offset + page.limit > 10000
+                  }
+                  onClick={() =>
+                    change({ ...page, offset: page.offset + page.limit })
+                  }
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+            {state.data.pagination.hasMore &&
+              page.offset + page.limit > 10000 && (
+                <p className="pagination-limit">
+                  The catalog navigation limit has been reached. Choose a status
+                  filter to narrow the list.
+                </p>
+              )}
+          </>
+        )}
+      </section>
     </>
   );
 }
 export function Catalog({ user }: { user: Identity }) {
   const admin = user.role === 'ADMIN';
-  const hash = useHash();
+  const [hash, navigate] = useHash();
   const container = useRef<HTMLDivElement>(null);
   const [back, remember] = useState('#products');
+  const [path, query = ''] = hash.replace(/^#/, '').split('?');
   useEffect(() => {
     document.title = 'Products · OrderFlow';
     container.current?.querySelector<HTMLElement>('h1')?.focus();
-  }, [hash]);
-  const [path, query = ''] = hash.replace(/^#/, '').split('?');
+  }, [path]);
   let content;
   try {
     if (path === 'products')
@@ -347,6 +455,7 @@ export function Catalog({ user }: { user: Identity }) {
           back={hash}
           remember={remember}
           admin={admin}
+          navigate={navigate}
         />
       );
     else if (path === 'products/new')
