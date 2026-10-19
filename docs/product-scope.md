@@ -65,8 +65,8 @@ ownership checks remain pending.
 - Backend role and ownership authorization according to the permission matrix.
 
 These behaviors are intended to be usable through the web application and enforced by
-the backend. Authentication and the backend catalog are implemented. Inventory,
-ordering, and frontend workflows remain planned requirements. The approved [catalog
+the backend. Authentication and catalog workflows are implemented in the API and
+React application. Inventory and ordering remain planned requirements. The approved [catalog
 contract](product-catalog.md) defines validation and listing policies.
 
 ## Business rules

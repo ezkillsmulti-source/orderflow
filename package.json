@@ -8,17 +8,19 @@
   },
   "scripts": {
     "dev": "pnpm --filter @orderflow/api dev",
-    "build": "pnpm --filter @orderflow/api build",
-    "typecheck": "pnpm --filter @orderflow/api typecheck",
+    "build": "pnpm --filter @orderflow/api build && pnpm --filter @orderflow/web build",
+    "typecheck": "pnpm --filter @orderflow/api typecheck && pnpm --filter @orderflow/web typecheck",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm --filter @orderflow/api test",
+    "test": "pnpm --filter @orderflow/api test && pnpm --filter @orderflow/web test",
     "test:integration": "pnpm --filter @orderflow/api test:integration",
     "db:generate": "pnpm --filter @orderflow/api db:generate",
     "db:migrate": "pnpm --filter @orderflow/api db:migrate",
     "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev",
-    "users:provision:dev": "pnpm --filter @orderflow/api users:provision:dev"
+    "users:provision:dev": "pnpm --filter @orderflow/api users:provision:dev",
+    "dev:web": "pnpm --filter @orderflow/web dev",
+    "test:browser": "pnpm --filter @orderflow/api db:generate && pnpm --filter @orderflow/api exec tsc -p tsconfig.test.json && node --env-file-if-exists=.env apps/api/.test-dist/test/browser-runner.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

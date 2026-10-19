@@ -9,7 +9,7 @@ Run all documented pnpm commands from the repository root.
 
 Install with `pnpm install --frozen-lockfile`. Dependency versions and transitive
 resolution are committed; update dependencies deliberately and review the lockfile.
-The API is the only workspace package. TypeScript uses strict checking and native
+The workspace contains the API and React frontend. TypeScript uses strict checking and native
 ES modules. ESLint checks code; Prettier checks code and documentation.
 
 ## Environment and local PostgreSQL
@@ -583,3 +583,187 @@ and 136 PostgreSQL catalog/authentication integration tests passed after the fix
 The full local suite was not repeated. All random review databases were removed
 and the dedicated PostgreSQL 17.6 server was stopped. No existing migration or
 local .env was changed. Hosted CI results are tracked separately on the PR.
+
+## React frontend
+
+The frontend is in apps/web (React, Vite, strict TypeScript). Login, identity
+restoration, logout, product list/detail reads, and administrator forms are implemented. Run `pnpm dev` for
+the API, and `pnpm dev:web` in another terminal. Open http://127.0.0.1:5173.
+Set AUTH_TRUSTED_ORIGINS to include that exact origin while retaining any CLI origin.
+Existing .env files are never rewritten: update the trusted-origin list locally.
+
+Vite binds 127.0.0.1:5173 with strictPort. Relative /api requests are proxied to
+127.0.0.1:3000 with the prefix removed and browser Origin preserved. An optional
+server-only API_PROXY_TARGET in apps/web/.env.local can select another local API
+address; for example `API_PROXY_TARGET=http://127.0.0.1:3000`. No API secret belongs
+in a VITE_ variable or browser bundle. The Vite development proxy is not production
+hosting. A future deployment needs a same-origin reverse proxy and HTTPS.
+
+Root build/typecheck/test commands include both packages. `pnpm test:integration`
+continues to run the isolated PostgreSQL backend suite. The proxy test exercises
+real local HTTP forwarding and preserves cookie attributes.
+
+Dependency compatibility was checked on 2026-10-19 against official documentation:
+[React versions](https://react.dev/versions), [Vite requirements](https://vite.dev/guide/),
+[Vitest requirements](https://vitest.dev/guide/), and [Playwright installation](https://playwright.dev/docs/intro).
+Exact stable versions are pinned in apps/web/package.json. Node 24.22.0 satisfies
+the selected tools' engine ranges. No UI kit, state framework, or client-side router
+is added at this stage.
+
+### Browser checks
+
+From the root run `pnpm --filter @orderflow/web browser:install` once, then
+`pnpm test:browser`. Linux CI installs OS dependencies with
+`pnpm --filter @orderflow/web exec playwright install --with-deps chromium`.
+The runner loads TEST_DATABASE_ADMIN_URL, creates only a random test database,
+applies migrations, provisions ephemeral accounts, starts API/Vite, and cleans up
+servers/database even on failure. It never migrates the database in the admin URL.
+Port 5173 must be free; an existing developer frontend is never reused.
+
+Playwright runs Chromium at desktop/mobile sizes, with isolated browser contexts
+and condition-based assertions. Traces, video, screenshots, persisted storage state,
+and public artifact uploads are disabled. Test account secrets are redacted from
+runner output. No credentials or tokens belong in browser storage or logs.
+
+Authentication uses relative /api requests and browser-managed HttpOnly cookies.
+CSRF is memory-only, acquired before login and replaced using login's csrfToken.
+Identity is restored through /auth/me. A generation boundary cancels old requests
+and rejects stale responses after logout/account changes. The generation check also
+covers already-decoded 401/403 errors before their rejection handlers can invalidate
+or revalidate a newer session. A failed logout retains
+identity and reports an uncertain outcome; 503 does not imply unauthenticated.
+403 triggers identity revalidation and invalidates the cached CSRF token, without
+assuming token expiration or replaying a mutation. No mutation retries are automatic.
+
+The authentication increment passed formatting, lint, typecheck, both builds, seven
+web unit/proxy tests, and four real-API browser checks at 1280x900 and 390x844.
+The rendered login was inspected at both sizes. Automated checks do not establish
+complete accessibility compliance. These are intermediate authentication checks;
+the final catalog verification record below includes the combined application.
+
+### Browsing the catalog
+
+After login, both roles can list products and open details, including archives.
+Use Product status and Products per page; Previous/Next use hasMore rather than
+an invented total count. List state is encoded in the hash URL and detail back-links
+retain it. Invalid list bounds are rejected; offset never exceeds 10,000.
+
+Prices display in ARS using es-AR grouping with exactly two fractional digits.
+For example the API maximum "9007199254740991" displays as
+"ARS 90.071.992.547.409,91". Formatting splits bigint minor units into pesos and
+centavos; no floating-point monetary conversion occurs. Loading, empty, forbidden,
+unavailable, and missing-product states are distinct. Product text is rendered
+through React text nodes, never HTML. Read-only browser flows cover both viewports.
+
+The browsing increment passed 14 web unit/proxy tests and eight real-API browser
+checks across desktop/mobile, plus formatting, lint, typecheck, and the web build.
+Catalog captures were inspected at both sizes. Narrow screens use a keyboard-focusable
+horizontally scrollable table, with a visible scrolling hint and readable columns.
+
+### Administrator catalog actions
+
+Administrators can create a product, edit only changed fields, and archive after
+confirmation. Operators have read controls only; direct requests remain subject to
+backend authorization. Archived products have no edit/reactivation controls. A role
+change during editing revalidates identity on 403 and removes disallowed controls;
+a confirmed expired/inactive session returns to sign-in and clears user-specific data.
+
+Price entry uses ungrouped ASCII decimal ARS with a dot and zero, one, or two
+fractional digits: `0`, `1.5`, `1250.50`, and `90071992547409.91` are valid. Leading
+zeros other than `0`, surrounding whitespace, commas/grouping, signs, exponents,
+trailing dots, and more than two fractional digits are rejected. The maximum is
+90071992547409.91 ARS (9007199254740991 minor units); conversion uses bigint only.
+Display uses es-AR grouping and a comma, so input and display formats intentionally
+differ and the field explains its format. SKU/name/description follow the
+[catalog contract](product-catalog.md), including trimming, valid Unicode, and
+case-sensitive SKU reservation across archives.
+
+Validation errors are associated with fields. Conflicts and forbidden requests keep
+form values when the identity/role remains valid. A failed network response or
+15-second timeout can leave an uncertain write outcome: check the current catalog
+before deliberately resubmitting. No mutation is automatically retried after CSRF
+refresh or a transport failure. Confirmed writes load fresh server data. PATCH sends
+only changed normalized values; concurrent submitted fields use last-write-wins,
+without optimistic locking. Pagination is not a consistent snapshot.
+
+Use the keyboard-accessible archive dialog to confirm or cancel. Initial focus is
+on Keep product active; Escape cancels and returns focus. Busy confirmation cannot
+be dismissed. Navigation moves focus to the destination heading, including the archived-edit
+notice after its asynchronous product read. Skip to content
+focuses the main landmark without changing the catalog route. Narrow tables scroll
+horizontally with a visible hint. Accessibility has not been audited for full compliance.
+
+### Manual web walkthrough
+
+1. Follow Local setup above, apply migrations, and provision both development accounts
+   using local DEV_ADMIN_EMAIL/DEV_ADMIN_PASSWORD and operator equivalents. Keep
+   passwords out of shell history and source control.
+2. In the root .env, configure NODE_ENV=development and
+   `AUTH_TRUSTED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:5173`.
+   Retain your existing database URL and generated SESSION_SECRET. Restart the API
+   after configuration changes.
+3. Run `pnpm dev` in one terminal and `pnpm dev:web` in another. Open
+   http://127.0.0.1:5173 and sign in as the provisioned administrator.
+4. Choose Create product, enter a unique SKU, a name, and `1250.50` as Price (ARS).
+   The detail view displays `ARS 1.250,50`. Edit only the price to `0`; confirm it
+   displays `ARS 0,00`. Archive the product, cancelling once with Escape before
+   confirming. Archived details have no edit controls.
+5. Select Archived products in the list; open its detail. Reload to verify session
+   restoration. Sign out; sign in as the operator and read the same archive.
+   Creation/edit/archive controls are absent. Sign out again.
+
+Real-browser verification exercises this workflow with ephemeral accounts and
+synthetic products at both viewports, including the maximum monetary value. Browser
+checks also exercise invalid credentials, actual origin/CSRF rejection without
+writes, session invalidation, role changes, duplicate SKUs, concurrent archival
+before an edit, and a committed creation whose response is lost. Screenshots/traces
+with credentials or real data must never be committed or uploaded as public artifacts.
+For private synthetic visual review only, set E2E_VISUAL_DIR to a directory outside
+the repository before `pnpm test:browser`; captures include empty login fields and
+synthetic catalog/form/dialog screens. The default and CI do not capture them.
+
+### Frontend catalog verification — 2026-10-19
+
+Using Node 24.22.0, pnpm 10.34.7, and a dedicated temporary PostgreSQL 17.6 server,
+the final combined application passed:
+
+- `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`.
+- `pnpm test`: 90 API unit/HTTP tests and 37 web unit/proxy tests.
+- `pnpm test:integration`: 170 isolated PostgreSQL tests.
+- `pnpm build`: API TypeScript compilation and frontend TypeScript/Vite build.
+- `pnpm test:browser`: 18 real-API Chromium checks, at 1280x900 and 390x844.
+
+Rendered login, catalog, creation form, and archive confirmation were visually
+inspected at both sizes using private synthetic captures outside Git. The mobile
+catalog uses horizontal table scrolling; forms/dialogs remain within the viewport.
+Keyboard assertions cover destination focus, skip navigation, dialog cancellation,
+and return focus. This is not a complete accessibility or browser compatibility audit;
+Firefox, WebKit, physical mobile devices, and production HTTPS hosting were not tested.
+
+A deliberate no-matching-tests run returned a nonzero exit code to exercise the
+runner's failure cleanup. After successful and failed browser runs, a database check
+confirmed zero remaining generated test databases. The temporary PostgreSQL server
+was stopped after verification. No application database, existing .env file, previous
+migration, or backend production source was changed. The workflow includes browser
+checks, but hosted CI was not run because this branch was not pushed.
+
+### Frontend review: settled session errors — 2026-10-19
+
+Review reproduced a narrow race where a previously decoded 401/403 reached its
+rejection handler after a different login began. The old handler could invalidate
+or revalidate the new session. Public request/logout and identity-revalidation error
+handlers now check their captured generation before touching session state. Four
+microtask-synchronized regression cases failed before the fix and pass afterward.
+The 41 web unit/proxy tests, root lint, web typecheck, and web build passed. The
+unchanged backend suite was not repeated for this client-only fix.
+
+### Frontend review: archived edit focus — 2026-10-19
+
+Opening an archived product's edit URL displayed a notice after its asynchronous
+read but left keyboard focus on the document. The notice heading is now focusable
+and receives focus when the archived state arrives. The strengthened browser
+assertion failed on desktop/mobile before the fix. Six focused real-API Chromium
+checks now pass across both viewports, covering the administrator workflow and
+session restoration/logout failures. Root lint, web typecheck, and web build also
+passed. Workspace and catalog documentation no longer describe implemented web
+screens/browser tests as pending. The complete local backend suite was not repeated.
