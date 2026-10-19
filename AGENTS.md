@@ -16,7 +16,15 @@
 - Report changes, checks actually performed, and remaining limitations.
 - Never fabricate commands, successful checks, or results.
 - Review untracked file contents as well as tracked diffs; normal diffs omit them.
+- Follow the task-focused commit policy in `CONTRIBUTING.md#task-focused-commits`.
 - Do not commit or push unless explicitly instructed.
 
-Implementation has not started. The initial task is documentation only; do not
-scaffold the application or install dependencies without a subsequent request.
+The backend foundation is implemented in `apps/api`; later features remain planned.
+Use Node from `.nvmrc` and pnpm from `packageManager`. Run commands from the root:
+`pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test`, `pnpm test:integration`, and `pnpm build`.
+Integration tests require TEST_DATABASE_ADMIN_URL on a dedicated local/CI server
+and create/drop only a random test database. Never point tests at production.
+Use `pnpm db:migrate` for committed migrations, not `db push`. Preserve custom
+SQL constraints and review untracked migration files before staging.
+See `docs/development.md` for environment loading and migration authoring.

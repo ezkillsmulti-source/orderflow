@@ -1,0 +1,30 @@
+{
+  "name": "orderflow",
+  "private": true,
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=24.22.0 <25",
+    "pnpm": "10.34.7"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @orderflow/api dev",
+    "build": "pnpm --filter @orderflow/api build",
+    "typecheck": "pnpm --filter @orderflow/api typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @orderflow/api test",
+    "test:integration": "pnpm --filter @orderflow/api test:integration",
+    "db:generate": "pnpm --filter @orderflow/api db:generate",
+    "db:migrate": "pnpm --filter @orderflow/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @orderflow/api db:migrate:dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "typescript-eslint": "8.72.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3"
+  },
+  "type": "module"
+}

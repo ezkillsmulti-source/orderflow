@@ -52,3 +52,7 @@ logs/
 *~
 .DS_Store
 Thumbs.db
+
+# Generated API files
+apps/api/src/generated/
+apps/api/.test-dist/

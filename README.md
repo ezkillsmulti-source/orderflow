@@ -1,45 +1,66 @@
 # OrderFlow
 
-OrderFlow is a planned web application for small businesses to manage products,
-inventory, and orders. It aims to replace disconnected records with a consistent
-view of available stock and the orders reserving it.
+OrderFlow is a planned application for small businesses to manage products,
+inventory, and orders. The backend foundation is implemented: a NestJS API,
+PostgreSQL/Prisma schema and initial migration, health routes, automated tests,
+and a GitHub Actions workflow. Business features and the frontend are planned.
 
-The first release supports one business. Administrators manage products, inventory
-adjustments, and all orders. Operators read products and available stock, create
-orders, and view or cancel only their own orders. The
-[product scope](docs/product-scope.md) defines the full rules.
+## Local setup
 
-The planned first release uses archived products, ARS prices in integer minor
-units, atomic stock reservations, and idempotent order creation and cancellation.
-Accounts will initially come from a development seed; authentication will use
-server-side sessions with an HttpOnly cookie and CSRF protection.
+Requirements: Node.js **24.22.0 LTS**, pnpm **10.34.7**, and Docker with Compose v2
+supporting `up --wait`. See [development](docs/development.md) for installing the
+pinned toolchain and configuration details. From the repository root:
 
-This portfolio project is intended to demonstrate practical backend engineering:
-delivering business behavior, documenting decisions, testing correctness, and
-operating an application.
+```bash
+test -e .env || cp .env.example .env
+# Replace the local password consistently in .env before starting PostgreSQL.
+pnpm install --frozen-lockfile
+docker compose up -d --wait postgres
+pnpm db:generate
+pnpm db:migrate
+pnpm dev
+```
 
-## Status
+In another terminal:
 
-Implementation has not started. This repository currently contains initial
-planning and contribution documentation only. There is no application to run,
-and no setup commands, test results, or deployment URLs are available yet.
+```bash
+curl --fail http://127.0.0.1:3000/health/live
+curl --fail http://127.0.0.1:3000/health/ready
+```
 
-## Planned stack and architecture
+Both return `{"status":"ok"}` with HTTP 200 when PostgreSQL is available.
+Readiness returns HTTP 503 and `{"status":"not_ready"}` when PostgreSQL is
+unavailable; liveness stays independent. Use Ctrl-C to stop the API. For compiled
+execution, run `pnpm build` then `pnpm --filter @orderflow/api start`.
 
-- TypeScript and Node.js with NestJS for the backend.
-- PostgreSQL with Prisma for persistence.
-- React with Vite for the frontend.
-- Jest/Supertest for backend tests and Playwright for browser tests.
-- Docker Compose and Nginx for the runtime environment.
-- GitHub Actions for automated verification.
-- Redis and BullMQ when a later milestone introduces background processing.
+## Verification
 
-Start with a modular monolith. Add a worker only when background processing is
-needed; microservices and speculative infrastructure are outside the plan.
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:integration
+pnpm build
+```
 
-## Project documents
+Integration checks require TEST_DATABASE_ADMIN_URL from `.env` and create/drop a
+random database on the dedicated local PostgreSQL server. They never use the
+application database. See [development](docs/development.md) for isolation,
+migrations, shutdown, and troubleshooting. CI runs these checks on pull requests
+and pushes to `main`; adding the workflow does not imply a hosted run has passed.
 
-- [Product scope, business rules, and unresolved decisions](docs/product-scope.md)
-- [Incremental roadmap and completion criteria](docs/roadmap.md)
-- [Contribution workflow](CONTRIBUTING.md)
+## Scope and documents
+
+There is no frontend, authentication, product CRUD, inventory, ordering, Redis,
+worker, or deployment yet. The Product table alone does not implement catalog
+business behavior. The planned stack adds React/Vite and browser testing when the
+frontend is introduced, and background processing only when needed.
+
+- [Product scope and business rules](docs/product-scope.md)
+- [Roadmap and current progress](docs/roadmap.md)
+- [Current architecture](docs/architecture.md)
+- [Development workflow](docs/development.md)
+- [Architecture decisions](docs/decisions/0001-backend-foundation.md)
+- [Contributing](CONTRIBUTING.md)
 - [Instructions for coding agents](AGENTS.md)

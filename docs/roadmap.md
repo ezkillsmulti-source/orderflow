@@ -1,19 +1,22 @@
 # Roadmap
 
-All milestones are planned. Implementation has not started. Each milestone builds
-on the previous result and must include relevant documentation and verification.
-The [product scope](product-scope.md) is the source of business rules and open
-decisions; resolve decisions needed by a milestone before implementing it.
+Milestone 1 now targets the backend foundation only. The frontend originally
+included in that milestone is deferred by the revised scope. Later milestones
+remain planned; no first-release business behavior is implemented. The
+[product scope](product-scope.md) remains the source of business rules.
 
-## 1. Runnable foundation
+## 1. Reproducible backend foundation
 
-Deliver a minimal NestJS backend, React/Vite frontend, and PostgreSQL/Prisma
-connection within a modular monolith.
+Implemented: a pinned pnpm workspace, NestJS API with validated environment
+configuration, liveness and bounded PostgreSQL readiness checks, graceful shutdown,
+Prisma schema and initial constrained Product migration, local PostgreSQL Compose,
+unit/HTTP and isolated real-database integration tests, and a CI workflow.
 
-Completion: a documented local workflow starts the application, a browser can
-reach a backend health response, an initial migration applies to a fresh database,
-and GitHub Actions runs the actual checks introduced by this milestone. Redis and
-a worker are not needed yet.
+The [development guide](development.md) defines setup and checks and includes a
+dated verification record. Isolated Docker Compose startup, volume persistence
+across container recreation, cleanup, and a hosted backend CI run have passed;
+the guide links the specific CI run, and PR checks show results for later commits.
+No frontend, authentication, business endpoints, Redis, or worker is included.
 
 ## 2. Authenticated product catalog
 
