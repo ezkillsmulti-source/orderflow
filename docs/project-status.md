@@ -9,11 +9,11 @@ should be read as evidence that an unmerged branch is available on `main`.
 | Work                                        | Branch / commit                                                          | Delivery state                                         |
 | ------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
 | Application baseline for this documentation | `main` / `origin/main` at `38a2a44ae96796d9e9faa1449fd2800df2ee3d2c`     | Merged through PR #10                                  |
-| Documentation                               | `docs/developer-handoff`, based on that main commit                      | Local documentation work; no runtime changes           |
+| Documentation                               | `docs/developer-handoff`, based on that main commit                      | Documentation-only handoff; no runtime changes         |
 | Inventory frontend 4C                       | Local `feat/inventory-web` at `fc0971eca4f509fad51b953232d807b197b1a5e4` | Implemented, unmerged and unpublished at this snapshot |
 
-The working tree was clean when inspected. Fetching origin confirmed the main
-baseline above; no open PRs were returned. The remote feature branches are retained
+At baseline inspection, both working trees were clean. Fetching origin confirmed
+the main baseline above; no open PRs were returned at that inspection. The remote feature branches are retained
 history, not evidence of unfinished work: their task commits are included in main.
 The exception is local `feat/inventory-web`, whose two commits are absent from main:
 

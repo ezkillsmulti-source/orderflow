@@ -101,12 +101,17 @@ API caller; the product-detail inventory UI exists only on the local 4C branch.
 sequenceDiagram
     participant C as API client
     participant A as Auth and request protection
+    participant P as InventoryController
     participant I as InventoryService
     participant D as PostgreSQL
     C->>A: POST /products/:id/inventory/adjustments + key
-    A->>D: Load session, current active user and role
-    Note over A: Origin, CSRF and admission checks; require ADMIN
-    A->>I: Validated product, delta, reason and UUID v4 key
+    A->>D: Load session
+    Note over A: Check Origin, admission and CSRF
+    A->>D: Reload current active user and role
+    Note over A: Require ADMIN
+    A->>P: Authorized request
+    P->>P: Validate product ID, query, body and UUID v4 key
+    P->>I: Normalized product, delta, reason and key
     I->>D: BEGIN; lock Product FOR UPDATE
     I->>D: Find movement by actor and key
     alt Existing key
