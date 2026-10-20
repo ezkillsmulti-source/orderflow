@@ -2,6 +2,11 @@
 
 Status: Accepted.
 
+Historical scope note: the no-auth-endpoint and pending-session/throttling
+statements below describe this account increment. [ADR 0004](0004-session-authentication.md)
+and subsequent role guards supersede those implementation gaps. Password recovery,
+email ownership verification and production provisioning remain outside this ADR.
+
 ## Decision
 
 Add a User table with Prisma-generated UUIDs, email, passwordHash, an explicit

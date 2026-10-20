@@ -66,8 +66,8 @@ ownership checks remain pending.
 
 These behaviors are intended to be usable through the web application and enforced by
 the backend. Authentication and catalog workflows are implemented in the API and
-React application. Backend inventory is implemented; inventory UI and ordering
-remain planned requirements. The approved [catalog
+React application. Delivery state, including the unmerged inventory frontend and planned ordering,
+is recorded in [project status](project-status.md). The approved [catalog
 contract](product-catalog.md) defines validation and listing policies.
 
 ## Business rules
@@ -208,9 +208,9 @@ are outside the current architecture direction.
   later taxes, discounts, and provider conversions need their own rounding policies.
 - Product IDs use UUIDs and stored SKUs are currently case-sensitive. Other ID formats remain future decisions. The
   [catalog contract](product-catalog.md) selects SKU/text limits, archive visibility,
-  and no reactivation for this task.
+  and no reactivation.
 - Backend inventory history, permissions and idempotency are implemented in the
-  [inventory contract](inventory.md). The inventory UI remains milestone 4C.
+  [inventory contract](inventory.md). See [project status](project-status.md) for inventory frontend delivery and acceptance.
 - Catalog listing policy is implemented in the [catalog contract](product-catalog.md).
   Decide required customer information and listing policies for future orders.
   Inventory history pagination is documented in the inventory contract.

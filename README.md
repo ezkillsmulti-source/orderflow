@@ -1,5 +1,9 @@
 # OrderFlow
 
+Delivery state, including local-only inventory UI 4C, is recorded in
+[project status](docs/project-status.md). This checkout documents main at the
+implementation baseline recorded there.
+
 OrderFlow is a planned application for small businesses to manage products, inventory,
 and orders. The backend foundation is implemented: a NestJS API, PostgreSQL/Prisma
 schema and initial migration, health routes, automated tests, and a GitHub Actions
@@ -11,10 +15,10 @@ creation, listing, detail reads, editing, and archiving with current-role author
 The React/Vite application in `apps/web` implements login, identity restoration,
 logout, product browsing/detail reads, and administrator creation, editing, and
 archival. Both roles can read archived products. Backend inventory balances/history and
-idempotent ADMIN adjustments are implemented; inventory UI and orders remain planned.
+idempotent ADMIN adjustments are implemented; inventory UI 4C is implemented only on an unmerged local branch; orders remain planned.
 Milestone 3 implements a warm burgundy product workspace with clear filters,
 role-aware actions, grouped forms, and responsive keyboard-accessible browsing.
-Inventory UI and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
+See project status for the unmerged inventory UI and remaining acceptance work. See the [UI design guide](docs/ui-design.md).
 See the [frontend startup instructions](docs/development.md#react-frontend).
 
 ## Local setup
@@ -111,4 +115,4 @@ explicit image upload/replacement, and confirmed removal. See the
 
 Inventory balances/history and atomic idempotent ADMIN adjustments are implemented
 in the backend. Positive stock prevents archival; corrections append compensating
-movements. Inventory UI (4C) and reservations remain pending. See the [inventory contract](docs/inventory.md).
+movements. Inventory UI 4C is local-only; reservations remain planned. See the [inventory contract](docs/inventory.md).

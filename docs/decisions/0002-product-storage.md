@@ -2,6 +2,9 @@
 
 Status: Accepted.
 
+Historical scope note: the initial absence of monetary endpoints is superseded
+by the catalog follow-up below. The exact storage/serialization decisions remain.
+
 ## Context
 
 Prices must remain exact from zero through 9,007,199,254,740,991 minor units.

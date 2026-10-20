@@ -846,7 +846,7 @@ Review used a new PostgreSQL container with random migrated databases, a random 
 port, and Vite on 127.0.0.1:5183; it did not reuse or modify the manual preview.
 The complete local suite was not repeated. Existing hosted CI retains the complete
 backend/frontend and browser checks. User feedback is recorded separately in the
-[design guide](ui-design.md#review-feedback), not counted as an additional test run.
+[design guide](ui-design.md#verification-and-limitations), not counted as an additional test run.
 
 ## Private product image storage
 
@@ -1228,3 +1228,10 @@ structured metadata shapes and unrelated errors. Isolated PostgreSQL resources
 were used; existing local configuration, preview credentials and data were not
 used or reset. No frontend change or local browser rerun was needed; hosted CI
 retains the complete browser suite.
+
+## Documentation verification
+
+Check relative Markdown paths and heading anchors, compare commands with workspace
+scripts, review Mermaid blocks against source flow, and run `pnpm format:check`.
+Do not describe source review or historical test evidence as a fresh application
+run. External references and GitHub rendering need separate checks when available.

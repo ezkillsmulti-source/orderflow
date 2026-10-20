@@ -2,11 +2,15 @@
 
 Status: Accepted.
 
+Historical scope note: this ADR records the API-only foundation increment. The
+one-package/API-only script and no-frontend statements below were superseded by
+the React workspace integration. The modular-monolith/toolchain decisions remain;
+see [project status](../project-status.md) for delivery state.
+
 ## Context
 
 The first runnable increment needs an API, persistence, and repeatable checks.
-The original roadmap also included a frontend; the requested milestone now
-explicitly defers it. There is no background workflow or shared package consumer.
+The foundation increment deliberately deferred the frontend. There is no background workflow or shared package consumer.
 
 ## Decision
 

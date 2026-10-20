@@ -2,6 +2,9 @@
 
 Status: accepted and implemented for milestone 4B backend.
 
+Scope note: this ADR records backend behavior. Frontend delivery, including
+local unmerged 4C, is tracked in [project status](../project-status.md).
+
 Keep inventory in the modular monolith using InventoryModule and DatabaseService.
 Product owns bounded BIGINT onHand and inventorySequence, both initially zero.
 InventoryAdjustment stores signed nonzero delta, trimmed reason, resulting balance,
