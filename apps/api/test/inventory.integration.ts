@@ -13,7 +13,9 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { ImagesService } from '../src/products/images/images.service.js';
 import { IMAGE_DIRECTORY } from '../src/products/images/image.storage.js';
-import { Prisma } from '../src/generated/prisma/client.js';
+import { Prisma, PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { ProductRowTimeout } from '../src/products/product-row.js';
 import { randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -951,30 +953,161 @@ it('recovers a committed adjustment after an ambiguous database acknowledgement 
   expect((await state()).product.inventorySequence).toBe(1n);
 });
 
-it('bounds real product lock waits and leaves timed-out adjustments unchanged', async () => {
-  const before = await state();
-  const locked = gate(),
-    release = gate();
-  const hold = db.client.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${id}::uuid FOR UPDATE`;
-    locked.release();
-    await release.wait;
-  });
-  let pending: Promise<request.Response> | undefined;
-  try {
-    await reached(locked.wait);
-    pending = adjust().then((r) => r);
-    await blocked();
-    await reached(pending);
-  } finally {
-    release.release();
-    await hold;
-    await pending;
-  }
-  expect((await pending)!.status).toBe(503);
-  expect((await pending)!.body).toEqual({
-    statusCode: 503,
-    message: 'Inventory storage unavailable.',
-  });
-  expect(await state()).toEqual(before);
-});
+it.each(['default', 'statement', 'lock', 'client', 'transaction'] as const)(
+  'bounds real product lock waits and leaves timed-out adjustments unchanged: %s',
+  async (mode) => {
+    const before = await state();
+    const key = randomUUID();
+    const database = app.get(DatabaseService);
+    const service = app.get(InventoryService);
+    const originalLock = service.lock.bind(service);
+    const record = jest.spyOn(service, 'record');
+    const entered = gate(),
+      release = gate();
+    let holderPid = 0,
+      waiterPid = 0;
+    let lockError: unknown;
+    // Client-first: the server deadline still expires before the rollback query's
+    // own deadline (300 + 300 ms). Production retains its existing 1-second limits.
+    const replacement =
+      mode === 'client'
+        ? new PrismaClient({
+            adapter: new PrismaPg({
+              connectionString: db.databaseUrl,
+              max: 2,
+              connectionTimeoutMillis: 1000,
+              query_timeout: 300,
+              statement_timeout: 500,
+            }),
+          })
+        : undefined;
+    const property = replacement
+      ? jest.replaceProperty(database, 'client', replacement)
+      : undefined;
+    try {
+      if (mode === 'transaction') {
+        const original = database.client.$transaction.bind(database.client);
+        jest
+          .spyOn(database.client, '$transaction')
+          .mockImplementationOnce(
+            async (...args: Parameters<typeof original>) =>
+              original(args[0], { ...args[1], timeout: 300 }),
+          );
+      }
+      jest
+        .spyOn(service, 'lock')
+        .mockImplementationOnce(async (tx, productId) => {
+          if (mode === 'statement')
+            await tx.$executeRaw`SET LOCAL statement_timeout = '300ms'`;
+          if (mode === 'transaction')
+            await tx.$executeRaw`SET LOCAL statement_timeout = '600ms'`;
+          if (mode === 'lock')
+            await tx.$executeRaw`SET LOCAL lock_timeout = '300ms'`;
+          const [connection] = await tx.$queryRaw<
+            { pid: number }[]
+          >`SELECT pg_backend_pid() AS pid`;
+          waiterPid = connection!.pid;
+          entered.release();
+          try {
+            return await originalLock(tx, productId);
+          } catch (error) {
+            lockError = error;
+            throw error;
+          }
+        });
+      const locked = gate();
+      const hold = db.client.$transaction(async (tx) => {
+        const [connection] = await tx.$queryRaw<
+          { pid: number }[]
+        >`SELECT pg_backend_pid() AS pid`;
+        holderPid = connection!.pid;
+        await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${id}::uuid FOR UPDATE`;
+        locked.release();
+        await release.wait;
+      });
+      let pending: Promise<request.Response> | undefined;
+      try {
+        await reached(locked.wait);
+        pending = adjust(undefined, key).then((response) => response);
+        await reached(entered.wait);
+        // Observe this exact waiter blocked by this exact holder, not another SQL statement.
+        const deadline = Date.now() + 5000;
+        let observed = false;
+        while (Date.now() < deadline) {
+          const [row] = await db.client.$queryRaw<{ blocked: boolean }[]>`
+          SELECT EXISTS (SELECT 1 FROM pg_stat_activity
+            WHERE pid=${waiterPid} AND wait_event_type='Lock'
+              AND ${holderPid}=ANY(pg_blocking_pids(pid))) AS blocked`;
+          if (row?.blocked) {
+            observed = true;
+            break;
+          }
+        }
+        expect(observed).toBe(true);
+        await reached(pending);
+      } finally {
+        release.release();
+        try {
+          await hold;
+        } finally {
+          await pending;
+        }
+      }
+      expect((await pending)!.status).toBe(503);
+      expect((await pending)!.body).toEqual({
+        statusCode: 503,
+        message: 'Inventory storage unavailable.',
+      });
+      expect(lockError instanceof ProductRowTimeout).toBe(true);
+      if (mode === 'statement' || mode === 'lock' || mode === 'transaction') {
+        const cause = (lockError as Error)
+          .cause as Prisma.PrismaClientKnownRequestError;
+        expect(cause.code).toBe('P2010');
+        const metadata = cause.meta?.driverAdapterError as {
+          cause: { kind: string; code: string; originalCode: string };
+        };
+        expect(metadata.cause.kind).toBe('postgres');
+        expect(metadata.cause.code).toBe(mode === 'lock' ? '55P03' : '57014');
+      } else if (mode === 'client') {
+        expect((lockError as Error).cause instanceof Error).toBe(true);
+        expect(
+          ((lockError as Error).cause as Error).message ===
+            'Query read timeout',
+        ).toBe(true);
+      }
+      // A driver-side deadline need not cancel SQL. Wait for the actual transaction to
+      // end after releasing the holder, then assert that no late application write ran.
+      const deadline = Date.now() + 5000;
+      let ended = false;
+      while (Date.now() < deadline) {
+        const [row] = await db.client.$queryRaw<{ active: boolean }[]>`
+        SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=${waiterPid} AND xact_start IS NOT NULL) AS active`;
+        if (!row?.active) {
+          ended = true;
+          break;
+        }
+      }
+      expect(ended).toBe(true);
+      expect(record).not.toHaveBeenCalled();
+      expect(await state()).toEqual(before);
+      expect(
+        await db.client.inventoryAdjustment.findUnique({
+          where: { actorId_idempotencyKey: { actorId, idempotencyKey: key } },
+        }),
+      ).toBeNull();
+      // The timed-out operation left no key association. A deliberate later request
+      // using the same key is new, succeeds once, and then replays without a write.
+      property?.restore();
+      jest.restoreAllMocks();
+      const accepted = await adjust(undefined, key).expect(201);
+      await adjust(undefined, key).expect(200, accepted.body);
+      const after = await state();
+      expect(after.product.onHand).toBe(1n);
+      expect(after.product.inventorySequence).toBe(1n);
+      expect(after.movements).toHaveLength(1);
+    } finally {
+      property?.restore();
+      await replacement?.$disconnect();
+    }
+  },
+);
