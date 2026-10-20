@@ -102,6 +102,8 @@ be added only when needed.
 
 The backend supports validated primary product image upload/replacement/removal,
 private authenticated variant reads, recoverable cleanup, and image metadata in
-catalog responses. Image UI remains pending; see the
+catalog responses. The web catalog displays thumbnails and detail images with
+accessible absent/failed-load fallbacks. Active ADMIN details support local preview,
+explicit image upload/replacement, and confirmed removal. See the
 [catalog contract](docs/product-catalog.md) and
 [storage ADR](docs/decisions/0005-product-image-storage.md).

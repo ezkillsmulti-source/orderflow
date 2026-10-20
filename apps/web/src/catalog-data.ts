@@ -1,6 +1,8 @@
 import { ApiError } from './api';
+import { primaryImage, type PrimaryImage } from './product-image';
 import { minorAmount } from './money';
 export interface Product {
+  image: PrimaryImage | null;
   id: string;
   sku: string;
   name: string;
@@ -38,7 +40,7 @@ export function product(value: unknown): Product {
   } catch {
     throw new ApiError(502);
   }
-  return data as Product;
+  return { ...data, image: primaryImage(data.id, data.image) } as Product;
 }
 export function listing(value: unknown): Listing {
   const data = value as Partial<Listing> | null;

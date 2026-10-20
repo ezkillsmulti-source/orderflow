@@ -128,8 +128,7 @@ hosting and reverse-proxy configuration remain planned.
 Product images remain in the ProductsModule with explicit response mapping and a
 small private local storage boundary. PostgreSQL tracks lifecycle candidates and
 retired versions; authenticated controllers stream current variants. See
-[ADR 0005](decisions/0005-product-image-storage.md). No public static directory, generic
-asset framework, or frontend image workflow is introduced.
+[ADR 0005](decisions/0005-product-image-storage.md). No public static directory or generic asset framework is introduced.
 
 For images, the controller validates identifiers and maps safe product descriptors;
 global authentication/role guards and request-protection middleware precede the
@@ -140,3 +139,10 @@ product update takes the same PostgreSQL row lock. ImageStorage owns private fix
 paths and file handles. ImageCleanup owns bounded transactional claims and recovery,
 without a generic repository layer or background worker. The additional SQL owner
 foreign key is intentional and must be retained when authoring future migrations.
+
+The React catalog validates primary image descriptors against the exact application
+path before adding `/api` once. Native image requests use browser-managed cookies;
+FormData mutations use the existing session/CSRF client and generation boundaries.
+Active ADMIN details own one ephemeral file selection/preview and explicit image
+mutations; OPERATOR and archives remain read-only. Preview URLs are revoked on view
+or session changes. Uncertain writes require an explicit state read before retry.

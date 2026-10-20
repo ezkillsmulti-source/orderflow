@@ -2,7 +2,11 @@ import { randomBytes } from 'node:crypto';
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import sharp from 'sharp';
+import { browserOutput } from './support/browser-output.js';
 import { createTestDatabase } from './support/test-database.js';
 import { provisionDevelopmentAccounts } from '../src/users/provision-development.js';
 
@@ -11,12 +15,7 @@ const children: ChildProcess[] = [];
 let db: Awaited<ReturnType<typeof createTestDatabase>> | undefined;
 const secrets: string[] = [];
 let stopping = false;
-function safe(text: string) {
-  return secrets.reduce(
-    (value, secret) => value.replaceAll(secret, '[redacted]'),
-    text,
-  );
-}
+let imageRuntime: string | undefined;
 function start(file: string, args: string[], env: NodeJS.ProcessEnv) {
   if (stopping) throw new Error('Browser verification interrupted.');
   const child = spawn(process.execPath, [file, ...args], {
@@ -66,7 +65,28 @@ async function stop(child: ChildProcess) {
   }
 }
 async function main() {
-  await freePort(5173); // Fail rather than reuse another developer's frontend.
+  const webPort = await freePort(0);
+  const webOrigin = `http://127.0.0.1:${webPort}`;
+  imageRuntime = await mkdtemp(join(tmpdir(), 'orderflow-browser-images-'));
+  const imageStorage = join(imageRuntime, 'storage');
+  await mkdir(imageStorage, { mode: 0o700 });
+  const fixture = join(imageRuntime, 'synthetic.png');
+  await writeFile(
+    fixture,
+    await sharp({
+      create: { width: 1200, height: 800, channels: 3, background: '#ede3d8' },
+    })
+      .composite([
+        {
+          input: Buffer.from(
+            '<svg width="1200" height="800"><rect x="410" y="110" width="380" height="600" rx="20" fill="#7A3045"/><rect x="440" y="290" width="320" height="210" fill="#fffdfc"/><circle cx="600" cy="395" r="64" fill="#7A3045"/></svg>',
+          ),
+        },
+      ])
+      .png()
+      .toBuffer(),
+    { mode: 0o600 },
+  );
   const port = await freePort(0);
   db = await createTestDatabase();
   const password = randomBytes(24).toString('hex');
@@ -78,7 +98,10 @@ async function main() {
     DATABASE_URL: db.databaseUrl,
     PORT: String(port),
     SESSION_SECRET: secret,
-    AUTH_TRUSTED_ORIGINS: 'http://127.0.0.1:5173',
+    AUTH_TRUSTED_ORIGINS: webOrigin,
+    E2E_WEB_ORIGIN: webOrigin,
+    PRODUCT_IMAGE_STORAGE_DIR: imageStorage,
+    E2E_IMAGE_FIXTURE: fixture,
     AUTH_TRUST_PROXY: '',
     API_PROXY_TARGET: `http://127.0.0.1:${port}`,
     E2E_DATABASE_URL: db.databaseUrl,
@@ -98,10 +121,16 @@ async function main() {
   await ready(`http://127.0.0.1:${port}/health/ready`, api);
   const web = start(
     resolve('apps/web/node_modules/vite/bin/vite.js'),
-    ['--config', resolve('apps/web/vite.config.ts'), resolve('apps/web')],
+    [
+      '--config',
+      resolve('apps/web/vite.config.ts'),
+      '--port',
+      String(webPort),
+      resolve('apps/web'),
+    ],
     env,
   );
-  await ready('http://127.0.0.1:5173', web);
+  await ready(webOrigin, web);
   const browser = spawn(
     process.execPath,
     [
@@ -122,7 +151,7 @@ async function main() {
     output += data.toString();
   });
   const [code] = await once(browser, 'exit');
-  process.stdout.write(safe(output));
+  process.stdout.write(browserOutput(output, secrets));
   if (code !== 0) throw new Error('Browser checks failed.');
 }
 let closing: Promise<void> | undefined;
@@ -131,7 +160,12 @@ function cleanup() {
     try {
       for (const child of [...children].reverse()) await stop(child);
     } finally {
-      await db?.close();
+      try {
+        await db?.close();
+      } finally {
+        if (imageRuntime)
+          await rm(imageRuntime, { recursive: true, force: true });
+      }
     }
   })();
   return closing;

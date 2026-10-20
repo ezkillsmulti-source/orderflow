@@ -72,6 +72,7 @@ it('validates Unicode bounds and computes only normalized changed fields', () =>
   const original = {
     ...data,
     id: 'id',
+    image: null,
     active: true,
     createdAt: '',
     updatedAt: '',

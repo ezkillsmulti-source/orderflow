@@ -6,7 +6,8 @@ One optional primary image belongs to a product. PostgreSQL stores ownership,
 version, variant dimensions, and lifecycle state. Bytes reside in a private local
 directory outside Git and web sources. Authenticated current-role checks protect
 reads; no public static directory exists. Descriptor URLs are backend paths; a
-future frontend adds `/api` exactly once. Image UI and galleries are deferred.
+frontend adds `/api` exactly once. The backend increment deferred image UI to the
+following frontend task; galleries remain deferred.
 
 Candidates are registered PENDING before any files are written. Both variants must
 be durable before publication. A short transaction locks the product, checks its
