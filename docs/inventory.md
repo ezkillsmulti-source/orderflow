@@ -84,10 +84,17 @@ the original key outside the aborted transaction. Each request locks exactly one
 product; there is no cross-product lock cycle or automatic mutation retry. Lock
 waiting is bounded by existing database deadlines; transactions have a 1-second
 acquisition budget and a 3-second overall budget. SQL lock/query timeouts identified
-by PostgreSQL code become sanitized 503. The shared row-lock helper also recognizes
+by PostgreSQL SQLSTATE 57014/55P03 become sanitized 503. The shared row-lock
+helper accepts both direct Prisma metadata and the pg adapter's structured
+`driverAdapterError.cause` PostgreSQL variant, only for P2010 at the lock query.
+The shared row-lock helper also recognizes
 pg's exact `Query read timeout` error only at that SQL boundary and tags it for
 the route-specific sanitizer; arbitrary errors/substrings are not classified.
-Unexplained failures remain 500.
+Unexplained failures, including unrelated transaction errors, remain 500.
+The pg client deadline does not itself cancel SQL; the server statement deadline
+and transaction rollback remain necessary. A rejected lock query stops the
+adjustment before balance, sequence or movement writes. No application retry is
+performed and production timeout budgets are unchanged.
 
 After a timeout, network failure or ambiguous commit response, do not generate a
 new key or infer failure. Deliberately repeat the same key and normalized payload

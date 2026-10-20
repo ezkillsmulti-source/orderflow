@@ -1187,3 +1187,44 @@ reservations, production database-role provisioning and deployment. Immutable
 history/idempotency keys accumulate; privileged TRUNCATE/DROP and arbitrary direct
 SQL remain administrative responsibilities, not application APIs or ledger repair.
 This verification does not claim complete accessibility or production acceptance.
+
+### Inventory lock-timeout regression
+
+Post-merge run 39349154252 at `55c23f8a5e7dc068059fd738a059b4697590b4ac`
+failed the real lock-wait assertion (500 instead of 503), while PR run
+39348192969 passed with identical application, dependency and workflow contents.
+The existing 1-second pg client and PostgreSQL statement deadlines compete.
+Client-first returns pg's exact unstructured `Query read timeout`; server-first
+returns Prisma P2010 with SQLSTATE in
+`meta.driverAdapterError.cause` (`kind: postgres`), rather than `meta.code`.
+The former was already recognized; the latter incorrectly reached the sanitized
+500 fallback. The shared product-row lock boundary now recognizes only identified
+PostgreSQL cancellation/lock-timeout codes 57014 and 55P03 in either structured
+shape, preserving the original cause privately. Unknown errors remain 500.
+
+Regression cases force statement-first, lock-first, client-first and an earlier
+interactive-transaction deadline, alongside unchanged production deadlines. Each
+observes the exact backend PID blocked by the held product row, requires 503,
+releases the holder and observes the actual transaction end before checking full
+product/movement state and the absent idempotency association. A deliberate later
+same-key request succeeds once and replays. The earlier transaction deadline does
+not cancel an in-flight pg query: its eventual SQL failure still propagates from
+the lock boundary; unrelated P2028 failures are not generally classified as 503.
+Client-side query timeout alone does not imply SQL cancellation. Test-only deadline
+ordering leaves room for the queued rollback before its own deadline; no production
+timeout is increased or cancellation guarantee invented. Connection and SQL limits,
+row-lock coordination, transaction budgets and mutation retry policy are unchanged.
+
+Use the existing isolated PostgreSQL setup and pinned toolchain. The focused command
+is `pnpm --filter @orderflow/api test:integration --testPathPatterns=inventory.integration --testNamePattern="bounds real product lock waits"`.
+Do not print raw driver errors: their metadata can contain SQL or submitted values.
+
+Fix verification with Node 24.22.0 / pnpm 10.34.7: the five lock-timeout cases
+passed in three consecutive bounded rounds (15/15). The complete PostgreSQL suite
+passed 289/289, API unit/HTTP tests 125/125, web tests 58/58, and root formatting,
+lint, API/web typechecks and builds passed. A server-first reproduction before the
+fix returned 500; the same path now requires 503. Unit regressions cover both
+structured metadata shapes and unrelated errors. Isolated PostgreSQL resources
+were used; existing local configuration, preview credentials and data were not
+used or reset. No frontend change or local browser rerun was needed; hosted CI
+retains the complete browser suite.
