@@ -214,6 +214,8 @@ untrusted/plain HTTP is rejected. Local HTTP uses `orderflow.sid` with the same
 attributes except Secure. Browser SameSite behavior is not established by HTTP/header
 tests. Catalog role authorization is implemented; order ownership remains pending.
 
+<a id="authenticated-api-walkthrough"></a>
+
 ### Curl walkthrough
 
 Start the migrated API and explicitly provision local users as described above.

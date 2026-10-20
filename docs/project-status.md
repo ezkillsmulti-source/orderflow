@@ -179,6 +179,10 @@ The [roadmap](roadmap.md) and [scope](product-scope.md) retain the full requirem
 
 ## Continuing independently
 
+Start with this snapshot, then the [feature guide](features.md),
+[architecture](architecture.md), relevant contracts/ADRs, and the
+[command reference](development.md).
+
 Follow requirements → contract/model → implementation → tests/docs → focused
 commits → PR → required CI → protected merge. Start each task with the status
 snapshot, actual Git state and its relevant contract. Validate business integer
