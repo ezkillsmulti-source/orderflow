@@ -78,7 +78,12 @@ refer to `fc0971e`, not to code merged into this documentation baseline.
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main baseline | [CI run 39354393598](https://github.com/ezkillsmulti-source/orderflow/actions/runs/39354393598), exact SHA `38a2a44ae96796d9e9faa1449fd2800df2ee3d2c` | Hosted `backend` job succeeded; the workflow includes API/web checks, PostgreSQL integration and Chromium browser tests                                                                 |
 | Local 4C      | Verification record in `fc0971e:docs/development.md`                                                                                                  | Previously recorded 78 web tests, 84 full browser cases plus two focused cases, formatting/lint/types and both builds; not a fresh run during this documentation task and not hosted CI |
-| Documentation | Review instructions in [development](development.md#documentation-verification)                                                                       | Link, diagram, scope and formatting checks are separate from application verification                                                                                                   |
+| Documentation | Checks recorded in [development](development.md#documentation-verification)                                                                           | Link, diagram, scope and formatting checks are separate from application verification                                                                                                   |
+
+The foundation's isolated Compose persistence record is retained in Git at
+`b3e6710:docs/development.md`: a disposable Product and migration history survived
+stop/start and container recreation with the named volume. This is historical local
+evidence, not a fresh test, a production storage guarantee or a backup/restore drill.
 
 CI does not prove production readiness, complete accessibility or user acceptance.
 Browser evidence covers Chromium desktop/mobile and selected 320px cases, not every
@@ -144,6 +149,10 @@ The [roadmap](roadmap.md) and [scope](product-scope.md) retain the full requirem
 
 ## Operational limitations and technical debt
 
+- `.env.example` supplies URL shapes, not a second test server. Its repeated local
+  port must not be mistaken for isolation; use the dedicated-server procedure in
+  [development](development.md#dedicated-test-server-example). Configuration was not
+  rewritten as part of the handoff.
 - One business; no orders, reservations, payments, public registration, recovery,
   production provisioning, Redis, worker or deployed hosting.
 - Reserved is derived zero and available equals on-hand; future reservations must
