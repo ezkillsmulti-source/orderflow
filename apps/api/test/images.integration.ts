@@ -744,7 +744,7 @@ it('holds the actual product row lock while a concurrent archive waits', async (
     while (true) {
       const [state] = await db.client.$queryRaw<
         { blocked: boolean }[]
-      >`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE '%UPDATE%Product%') AS blocked`;
+      >`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE '%Product%' AND query LIKE '%UPDATE%') AS blocked`;
       if (state?.blocked) break;
       if (Date.now() > deadline)
         throw new Error('Archive did not reach the product row lock.');

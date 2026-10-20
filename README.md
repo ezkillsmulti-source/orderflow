@@ -10,10 +10,11 @@ and shared login throttling are implemented. The backend catalog implements prod
 creation, listing, detail reads, editing, and archiving with current-role authorization.
 The React/Vite application in `apps/web` implements login, identity restoration,
 logout, product browsing/detail reads, and administrator creation, editing, and
-archival. Both roles can read archived products. Inventory and orders remain planned.
+archival. Both roles can read archived products. Backend inventory balances/history and
+idempotent ADMIN adjustments are implemented; inventory UI and orders remain planned.
 Milestone 3 implements a warm burgundy product workspace with clear filters,
 role-aware actions, grouped forms, and responsive keyboard-accessible browsing.
-Inventory and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
+Inventory UI and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
 See the [frontend startup instructions](docs/development.md#react-frontend).
 
 ## Local setup
@@ -86,7 +87,7 @@ and pushes to `main`; adding the workflow does not imply a hosted run has passed
 ## Scope and documents
 
 There is no public registration, password recovery, production account
-provisioning, inventory, ordering, Redis, worker, or deployment yet. Catalog endpoints
+provisioning, inventory UI, ordering, Redis, worker, or deployment yet. Catalog endpoints
 enforce ADMIN writes and ADMIN/OPERATOR reads, including archived products. Order
 ownership authorization remains pending. See the [catalog
 contract](docs/product-catalog.md). React/Vite and Chromium browser tests are implemented. Background processing will
@@ -108,6 +109,6 @@ explicit image upload/replacement, and confirmed removal. See the
 [catalog contract](docs/product-catalog.md) and
 [storage ADR](docs/decisions/0005-product-image-storage.md).
 
-Inventory balance/history reads and zero-initialized persistence are implemented
-in the backend. Adjustment writes are pending the next task commit; inventory UI
-(4C) and reservations remain pending. See the [inventory contract](docs/inventory.md).
+Inventory balances/history and atomic idempotent ADMIN adjustments are implemented
+in the backend. Positive stock prevents archival; corrections append compensating
+movements. Inventory UI (4C) and reservations remain pending. See the [inventory contract](docs/inventory.md).

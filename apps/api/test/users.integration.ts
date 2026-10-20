@@ -103,6 +103,7 @@ describe('user persistence', () => {
         { migration_name: '20261019030000_login_limits' },
         { migration_name: '20261020000000_product_images' },
         { migration_name: '20261020010000_inventory' },
+        { migration_name: '20261020020000_stock_archive' },
       ]);
     } finally {
       await upgrade.close();

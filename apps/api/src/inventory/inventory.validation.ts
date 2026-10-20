@@ -1,3 +1,5 @@
+import { toUSVString } from 'node:util';
+import type { Request } from 'express';
 import { BadRequestException } from '@nestjs/common';
 
 export const INVENTORY_MAX = 9007199254740991n;
@@ -34,4 +36,60 @@ export function noInventoryQuery(url: string) {
     ).size
   )
     throw new BadRequestException();
+}
+
+export interface AdjustmentInput {
+  delta: bigint;
+  reason: string;
+}
+export function adjustmentInput(value: unknown): AdjustmentInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new BadRequestException();
+  const body = value as Record<string, unknown>;
+  if (
+    Object.keys(body).length !== 2 ||
+    !Object.hasOwn(body, 'delta') ||
+    !Object.hasOwn(body, 'reason')
+  )
+    throw new BadRequestException();
+  const { delta, reason } = body;
+  if (
+    typeof delta !== 'string' ||
+    delta.length > 17 ||
+    delta !== delta.trim() ||
+    !/^-?[1-9][0-9]*$/.test(delta)
+  )
+    throw new BadRequestException();
+  const amount = BigInt(delta);
+  if (amount < -INVENTORY_MAX || amount > INVENTORY_MAX)
+    throw new BadRequestException();
+  if (
+    typeof reason !== 'string' ||
+    toUSVString(reason) !== reason ||
+    reason.includes('\0')
+  )
+    throw new BadRequestException();
+  const normalized = reason.trim();
+  if (!normalized || [...normalized].length > 500)
+    throw new BadRequestException();
+  return { delta: amount, reason: normalized };
+}
+export function idempotencyKey(req: Request): string {
+  // Express combines duplicate headers; rawHeaders also rejects duplicates before normalization.
+  const count = req.rawHeaders.filter(
+    (_, index) =>
+      index % 2 === 0 &&
+      req.rawHeaders[index]!.toLowerCase() === 'idempotency-key',
+  ).length;
+  const key = req.headers['idempotency-key'];
+  if (
+    count !== 1 ||
+    typeof key !== 'string' ||
+    key.length !== 36 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      key,
+    )
+  )
+    throw new BadRequestException();
+  return key;
 }

@@ -1,14 +1,49 @@
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Req,
+  Res,
+  type RawBodyRequest,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Roles } from '../auth/roles.js';
-import { productId } from '../products/product.validation.js';
+import { productId, productEncoding } from '../products/product.validation.js';
 import { InventoryService } from './inventory.service.js';
-import { historyPage, noInventoryQuery } from './inventory.validation.js';
+import {
+  historyPage,
+  noInventoryQuery,
+  adjustmentInput,
+  idempotencyKey,
+} from './inventory.validation.js';
 import { adjustmentResponse } from './inventory.response.js';
 @Roles('ADMIN', 'OPERATOR')
 @Controller('products/:id/inventory')
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
+  @Roles('ADMIN')
+  @Post('adjustments')
+  async adjust(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: RawBodyRequest<Request>,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    noInventoryQuery(req.originalUrl);
+    productEncoding(req);
+    const result = await this.inventory.adjust(
+      productId(id),
+      req.authenticatedUser!.id,
+      idempotencyKey(req),
+      adjustmentInput(body),
+    );
+    res.status(result.replayed ? 200 : 201);
+    if (result.replayed) res.setHeader('Idempotency-Replayed', 'true');
+    res.setHeader('Cache-Control', 'no-store');
+    return adjustmentResponse(result.row);
+  }
   @Get()
   balance(
     @Param('id') id: string,

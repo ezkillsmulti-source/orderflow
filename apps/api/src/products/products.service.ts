@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
+import { lockProduct } from './product-row.js';
 import type { ProductInput, ProductPage } from './product.validation.js';
-import { ProductConflict, productDatabaseError } from './product.errors.js';
+import {
+  ProductConflict,
+  ProductStockConflict,
+  productDatabaseError,
+} from './product.errors.js';
 
 @Injectable()
 export class ProductsService {
@@ -33,15 +38,26 @@ export class ProductsService {
     throw new ProductConflict();
   }
   async archive(id: string) {
-    const [product] = await this.database.client.product
-      .updateManyAndReturn({
-        include: { image: true },
-        where: { id, active: true },
-        data: { active: false },
-      })
+    return this.database.client
+      .$transaction(
+        async (tx) => {
+          const row = await lockProduct(tx, id);
+          if (row.onHand > 0n) throw new ProductStockConflict();
+          if (row.active)
+            return tx.product.update({
+              where: { id },
+              data: { active: false },
+              include: { image: true },
+            });
+          // Repeated archival performs no write and preserves image state/updatedAt.
+          return tx.product.findUniqueOrThrow({
+            where: { id },
+            include: { image: true },
+          });
+        },
+        { maxWait: 1000, timeout: 3000 },
+      )
       .catch(productDatabaseError);
-    // A repeated archive performs no row update, preserving updatedAt.
-    return product ?? this.get(id);
   }
   list(page: ProductPage) {
     return this.database.client.product
