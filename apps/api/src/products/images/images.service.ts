@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import { ImageStorage, type ImageVariant } from './image.storage.js';
 import { ProductConflict } from '../product.errors.js';
-import type { Prisma, Product } from '../../generated/prisma/client.js';
+import { lockProduct } from '../product-row.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { ImageProcessor } from './image.processor.js';
 import { IMAGE_SAFETY_MS } from './image.cleanup.js';
 import { randomUUID } from 'node:crypto';
@@ -67,10 +68,7 @@ export class ImagesService {
   }
 
   async lock(tx: Prisma.TransactionClient, id: string) {
-    const [product] = await tx.$queryRaw<
-      Product[]
-    >`SELECT * FROM "Product" WHERE "id" = ${id}::uuid FOR UPDATE`;
-    if (!product) throw new NotFoundException();
+    const product = await lockProduct(tx, id);
     if (!product.active) throw new ProductConflict();
     return product;
   }

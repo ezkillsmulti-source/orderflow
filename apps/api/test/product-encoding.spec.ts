@@ -42,6 +42,8 @@ beforeEach(() => {
     description: data.description ?? null,
     active: true,
     imageId: null,
+    onHand: 0n,
+    inventorySequence: 0n,
     image: null,
     createdAt: new Date(0),
     updatedAt: new Date(0),

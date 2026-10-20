@@ -1024,3 +1024,166 @@ computed text/focus contrast and 320px page reflow were checked. Automated check
 not establish complete accessibility compliance. Firefox, WebKit, physical devices,
 production HTTPS and hosted CI for the unpushed frontend branch were not tested.
 No private screenshots, credentials, storage state or uploaded files are tracked.
+
+## Inventory backend development
+
+The [inventory API](inventory.md) defines exact quantity strings, authenticated
+balance/history reads and bounded cursor pagination. Apply new migrations with
+`pnpm db:migrate`; never use db push or alter historical migrations. Products and
+images survive migration with zero initial stock and no synthetic movements.
+
+Inventory tests create/drop random databases on TEST_DATABASE_ADMIN_URL. An
+administrative TRUNCATE resets all related tables in those isolated databases;
+movement UPDATE/DELETE protections stay enabled. The browser fixture includes the
+new related table in its isolated reset. No application storage or database is used.
+
+Run the focused real-database tests with the pinned toolchain from the root:
+
+```sh
+pnpm --filter @orderflow/api test:integration --testPathPatterns=inventory.integration
+```
+
+The full root checks remain `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test`, `pnpm test:integration`, and `pnpm build`. The adjustment API walkthrough
+and completed write verification follow below.
+
+The read/persistence increment passed root formatting, lint and API/web typechecks,
+105 API unit/HTTP tests, both builds, and 26 focused PostgreSQL checks across
+inventory, historical-schema upgrades and foundation suites. Upgrade tests seed
+historical tables with SQL because the current Prisma client inserts new defaulted
+columns even when old fields alone are selected. No historical migration was edited.
+
+### Manual inventory API walkthrough
+
+Use a dedicated development database and the existing explicit account provisioning
+procedure; do not reset existing accounts. Start the API with committed migrations
+and the pinned toolchain (`pnpm db:migrate`, `pnpm dev`). The following root command
+uses configured development credentials without printing them, keeps cookies/CSRF
+and idempotency keys in memory, creates one synthetic product and leaves it archived.
+It does not alter other products or image storage. Set MANUAL_API_URL only when the
+API listens on a different loopback port; Origin must still be explicitly trusted.
+
+```bash
+node --env-file-if-exists=.env --input-type=module <<'JS'
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+const base = process.env.MANUAL_API_URL ?? 'http://127.0.0.1:3000';
+const origin = process.env.AUTH_TRUSTED_ORIGINS.split(',')[0].trim();
+async function api(session, method, path, body, expected, key) {
+  const headers = { Origin: origin };
+  if (session.cookie) headers.Cookie = session.cookie;
+  if (method !== 'GET' && session.token) headers['X-CSRF-Token'] = session.token;
+  if (key) headers['Idempotency-Key'] = key;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const response = await fetch(`${base}${path}`, {
+    method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const issued = response.headers.getSetCookie()[0];
+  if (issued) session.cookie = issued.split(';')[0];
+  assert.equal(response.status, expected, `${method} ${path}`);
+  console.log(`${method} ${path}: ${response.status}`);
+  return { body: response.status === 204 ? undefined : await response.json(), response };
+}
+async function login(email, password) {
+  assert.ok(email && password, 'Development credentials are required.');
+  const session = {};
+  const csrf = await api(session, 'GET', '/auth/csrf', undefined, 200);
+  session.token = csrf.body.csrfToken;
+  const result = await api(session, 'POST', '/auth/login', { email, password }, 200);
+  session.token = result.body.csrfToken;
+  session.actorId = result.body.user.id;
+  return session;
+}
+const admin = await login(process.env.DEV_ADMIN_EMAIL, process.env.DEV_ADMIN_PASSWORD);
+const operator = await login(process.env.DEV_OPERATOR_EMAIL, process.env.DEV_OPERATOR_PASSWORD);
+const product = (await api(admin, 'POST', '/products', {
+  sku: `INVENTORY-MANUAL-${randomUUID()}`, name: 'Manual inventory sample', priceMinor: '0',
+}, 201)).body;
+const path = `/products/${product.id}`;
+assert.equal((await api(admin, 'GET', `${path}/inventory`, undefined, 200)).body.onHand, '0');
+const key = randomUUID();
+const input = { delta: '3', reason: '  Initial count  ' };
+const first = await api(admin, 'POST', `${path}/inventory/adjustments`, input, 201, key);
+assert.equal(first.body.actorId, admin.actorId);
+assert.equal(first.body.balanceAfter, '3');
+const replay = await api(admin, 'POST', `${path}/inventory/adjustments`, {
+  reason: 'Initial count', delta: '3',
+}, 200, key);
+assert.deepEqual(replay.body, first.body);
+assert.equal(replay.response.headers.get('Idempotency-Replayed'), 'true');
+await api(admin, 'POST', `${path}/inventory/adjustments`, { ...input, delta: '4' }, 409, key);
+assert.equal((await api(admin, 'GET', path, undefined, 200)).body.updatedAt, product.updatedAt);
+await api(admin, 'POST', `${path}/archive`, undefined, 409);
+await api(admin, 'POST', `${path}/inventory/adjustments`, {
+  delta: '-3', reason: 'Compensating count correction',
+}, 201, randomUUID());
+const archived = (await api(admin, 'POST', `${path}/archive`, undefined, 200)).body;
+assert.deepEqual((await api(admin, 'POST', `${path}/archive`, undefined, 200)).body, archived);
+assert.deepEqual((await api(admin, 'POST', `${path}/inventory/adjustments`, input, 200, key)).body, first.body);
+await api(admin, 'POST', `${path}/inventory/adjustments`, input, 409, randomUUID());
+const history = (await api(operator, 'GET', `${path}/inventory/adjustments?limit=1`, undefined, 200)).body;
+assert.equal(history.items[0].sequence, '2');
+assert.equal(history.pagination.nextCursor, '2');
+const older = (await api(operator, 'GET', `${path}/inventory/adjustments?limit=1&before=2`, undefined, 200)).body;
+assert.equal(older.items[0].id, first.body.id);
+assert.equal(older.pagination.hasMore, false);
+assert.equal((await api(operator, 'GET', `${path}/inventory`, undefined, 200)).body.available, '0');
+await api(operator, 'POST', `${path}/inventory/adjustments`, input, 403, randomUUID());
+await api(admin, 'POST', '/auth/logout', undefined, 204);
+await api(operator, 'POST', '/auth/logout', undefined, 204);
+await api(admin, 'GET', `${path}/inventory`, undefined, 401);
+JS
+```
+
+After an uncertain adjustment outcome, preserve the original key and normalized
+payload and repeat deliberately. A new key means a new business operation. Replays
+return the original movement's balanceAfter, not the current balance; GET inventory
+is the current-state read. No automatic retries or successful-key expiry exist.
+
+The existing web archive dialog continues to show its generic conflict message for
+409 responses; no stock-specific frontend UX or inventory controls are added in 4B.
+A real-API browser regression verifies a positive-stock archive leaves the product
+active, permits cancellation/focus restoration, and succeeds after API compensation.
+Inventory workspace and specific stock feedback belong to milestone 4C.
+
+### Inventory backend verification — 2026-10-19
+
+With Node 24.22.0 and pnpm 10.34.7, final root formatting, lint, API/web typechecks,
+115 API unit/HTTP tests, 58 web unit/proxy tests, all 285 PostgreSQL integration
+checks (75 inventory cases), API/web builds, and all 54 desktop/mobile Chromium
+browser cases passed. The two new browser cases verify the positive-stock archive
+rule with actual adjustments and compensations; existing image/auth/catalog flows
+remain intact. No frontend implementation, new dependency or historical migration
+changed. Two additive migrations implement persistence and the archive SQL rule.
+
+Inventory verification covers zero defaults and image-era/original-schema upgrades,
+exact numeric/Unicode boundaries, current roles, inactive users, CSRF/origin,
+immutable history and foreign keys, bounded cursors, same-key and cross-product
+unique races, competing increments/decrements/overflow, insertion rollback,
+committed writes with lost acknowledgements, archive/image lock races and actual
+lock timeouts. Concurrency gates wait for transaction arrivals or observed SQL lock
+waits, never arbitrary sleeps. A real timeout initially returned sanitized 500
+because pg emits an unstructured Error; the final shared lock helper recognizes
+only its exact Query read timeout at that boundary and maps it to the relevant
+fixed 503. The regression and complete suites passed after that correction.
+
+The exact documented inventory walkthrough above was extracted and executed against
+a separate random migrated database/API listener with ephemeral accounts. It
+verified 201 creation, 200 identical replay (including after compensation/archive),
+409 changed-content/positive-stock/archive denials, actor attribution, preserved
+catalog updatedAt, cursor history, OPERATOR reads/write denial and logout/401.
+Only methods, product paths and statuses were printed, never keys/cookies/tokens.
+
+An intentionally unmatched browser selection exited nonzero after setup to exercise
+failure cleanup. After that run and successful suites, checks confirmed zero random
+test databases and zero browser/inventory image runtime directories. Owned test
+processes and the dedicated PostgreSQL container/volume were removed; existing
+.env, preview credentials, storage and services were preserved. Changed/untracked
+content was checked for private values and temporary artifacts. No branch was
+pushed and no hosted CI run is claimed for this increment.
+
+Inventory UI 4C and stock-specific archive feedback remain pending, as do orders,
+reservations, production database-role provisioning and deployment. Immutable
+history/idempotency keys accumulate; privileged TRUNCATE/DROP and arbitrary direct
+SQL remain administrative responsibilities, not application APIs or ledger repair.
+This verification does not claim complete accessibility or production acceptance.

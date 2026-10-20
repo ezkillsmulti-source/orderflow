@@ -80,14 +80,16 @@ and availability messages without changing authentication contracts. Unrecognize
 failures remain sanitized 500.
 
 ProductsService edits with an atomic id/active=true predicate and returned row, and
-archives only active rows. A repeated archive reads the existing row without updating
-timestamps. Submitted fields use last-write-wins; optimistic locking is not implemented.
-These single-row writes need no explicit multi-statement transaction. No prior migration
-changes or new migration are required.
+archives only active rows after locking Product and requiring zero onHand.
+A repeated archive reads the existing row without updating timestamps. Submitted fields use last-write-wins; optimistic locking is not implemented.
+Editing remains a single conditional write. Archive uses a short transaction
+shared with the inventory/image row-lock protocol. New inventory migrations add
+bounds and an archived-stock constraint; historical migrations remain unchanged.
 
 The backend catalog and role authorization are implemented. Order ownership checks
-remain pending. See the [catalog contract](product-catalog.md). There is no inventory,
-orders, Redis, or worker. Future business features remain governed by the
+remain pending. See the [catalog contract](product-catalog.md). Inventory balances/history
+and atomic idempotent adjustments are implemented. There are no orders, reservations,
+Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the
 [decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
 choices.
@@ -134,8 +136,8 @@ For images, the controller validates identifiers and maps safe product descripto
 global authentication/role guards and request-protection middleware precede the
 multipart interceptor. The interceptor owns the receive budget and admission slots.
 ImageProcessor owns format checks and native normalization; ImagesService prepares
-candidates and owns short publication/removal transactions. Archive's conditional
-product update takes the same PostgreSQL row lock. ImageStorage owns private fixed
+candidates and owns short publication/removal transactions. Archive locks the product, requires zero stock and updates active status under
+the same PostgreSQL row lock. ImageStorage owns private fixed
 paths and file handles. ImageCleanup owns bounded transactional claims and recovery,
 without a generic repository layer or background worker. The additional SQL owner
 foreign key is intentional and must be retained when authoring future migrations.
@@ -146,3 +148,22 @@ FormData mutations use the existing session/CSRF client and generation boundarie
 Active ADMIN details own one ephemeral file selection/preview and explicit image
 mutations; OPERATOR and archives remain read-only. Preview URLs are revoked on view
 or session changes. Uncertain writes require an explicit state read before retry.
+
+## Inventory
+
+InventoryModule uses a focused controller/service and DatabaseService, with explicit
+validation and response mapping. Balance/history reads are authenticated for both
+roles, including archives. Product holds zero-default BIGINT balance/sequence;
+InventoryAdjustment holds immutable movement metadata. Catalog responses and image
+storage remain unchanged. See [inventory contract](inventory.md) and
+[ADR 0006](decisions/0006-inventory-ledger.md). Inventory UI remains milestone 4C.
+
+Inventory writes lock Product FOR UPDATE through the same lockProduct helper as
+archive and image publication/removal. One transaction checks replay before active
+status, validates bigint results, updates balance/sequence with SQL that preserves
+catalog updatedAt, and inserts the immutable movement. Uniqueness spans actor/key,
+not product/key. Cross-product collisions are resolved after transaction rollback
+by reading the successful movement; no second product lock or automatic retry is
+introduced. Only identified conflicts/timeouts are mapped; unknown errors remain
+sanitized 500. SQL prevents positive-stock archives and history UPDATE/DELETE.
+There is no inventory UI, reservation persistence, worker or generic repository.

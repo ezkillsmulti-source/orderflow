@@ -80,12 +80,17 @@ deferred; this completion does not imply deployment or full accessibility compli
 
 ## 4B/4C. Accountable inventory
 
-Both remain planned: 4B delivers the backend inventory rules; 4C delivers the
-agreed inventory workspace using real API data. Image work does not implement stock.
+4B implements backend zero-initialized balances, authenticated reads, immutable
+adjustment history and atomic per-actor idempotent ADMIN adjustments. Positive
+stock prevents archival under the shared product-row lock. See the
+[inventory contract](inventory.md) and [ADR 0006](decisions/0006-inventory-ledger.md).
+4C remains planned and delivers the inventory workspace using real API data.
+Reservations remain milestone 5. Backend completion does not complete the combined
+user-facing 4B/4C acceptance criteria.
 
 Deliver available-stock visibility and administrator adjustments using signed
-integer deltas, non-empty reasons, and authenticated actors. Select the
-adjustment-history interface and access policy.
+integer deltas, non-empty reasons, and authenticated actors. The backend history
+contract is selected; its user-facing interface remains pending.
 
 Completion: a user can demonstrate an adjustment and inspect its recorded reason
 and actor through the agreed interface. Backend tests verify authorization,

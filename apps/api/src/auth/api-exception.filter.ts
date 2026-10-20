@@ -7,9 +7,14 @@ import {
 import type { Request, Response } from 'express';
 import {
   ProductConflict,
+  ProductStockConflict,
   ProductStorageUnavailable,
 } from '../products/product.errors.js';
 import { ImageUnavailable } from '../products/images/image.errors.js';
+import {
+  InventoryConflict,
+  InventoryUnavailable,
+} from '../inventory/inventory.errors.js';
 import { isHealthRequest } from './http-path.js';
 
 /** Fixed responses also prevent JSON parser and driver errors from echoing credentials. */
@@ -54,18 +59,30 @@ export class ApiExceptionFilter implements ExceptionFilter {
       const body = error.getResponse() as { retryAfter?: number };
       if (body.retryAfter) res.setHeader('Retry-After', body.retryAfter);
     }
+    const inventoryMessages = {
+      archived: 'Archived products cannot be adjusted.',
+      balance: 'Inventory balance would be outside its allowed range.',
+      key: 'Idempotency key conflicts with a previous adjustment.',
+      sequence: 'Inventory sequence limit reached.',
+    };
     const message =
-      error instanceof ImageUnavailable
-        ? 'Product image storage unavailable.'
-        : error instanceof ProductConflict
-          ? 'Product conflict.'
-          : error instanceof ProductStorageUnavailable
-            ? 'Product storage unavailable.'
-            : status === 401 &&
-                error instanceof HttpException &&
-                error.message === 'Invalid email or password.'
-              ? 'Invalid email or password.'
-              : (messages[status] ?? 'Request failed.');
+      error instanceof ProductStockConflict
+        ? 'Products with positive stock cannot be archived.'
+        : error instanceof InventoryConflict
+          ? inventoryMessages[error.kind]
+          : error instanceof InventoryUnavailable
+            ? 'Inventory storage unavailable.'
+            : error instanceof ImageUnavailable
+              ? 'Product image storage unavailable.'
+              : error instanceof ProductConflict
+                ? 'Product conflict.'
+                : error instanceof ProductStorageUnavailable
+                  ? 'Product storage unavailable.'
+                  : status === 401 &&
+                      error instanceof HttpException &&
+                      error.message === 'Invalid email or password.'
+                    ? 'Invalid email or password.'
+                    : (messages[status] ?? 'Request failed.');
     res.status(status).json({ statusCode: status, message });
   }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { ProductRowTimeout } from '../src/products/product-row.js';
 import { Prisma } from '../src/generated/prisma/client.js';
 import {
   productDatabaseError,
@@ -22,6 +23,15 @@ describe('catalog database error classification', () => {
       );
     },
   );
+  it('recognizes raw SQL query/lock timeouts introduced by row locking', () => {
+    expect(() => productDatabaseError(new ProductRowTimeout())).toThrow(
+      ProductStorageUnavailable,
+    );
+    for (const code of ['57014', '55P03'])
+      expect(() => productDatabaseError(known('P2010', { code }))).toThrow(
+        ProductStorageUnavailable,
+      );
+  });
   it('identifies only the Product SKU constraint, including the PostgreSQL adapter shape', () => {
     expect(() =>
       productDatabaseError(

@@ -1,10 +1,13 @@
+import { ProductRowTimeout } from './product-row.js';
 import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
 
+export class ProductStockConflict extends ConflictException {}
 export class ProductConflict extends ConflictException {}
 export class ProductStorageUnavailable extends ServiceUnavailableException {}
 
 export function productDatabaseError(error: unknown): never {
+  if (error instanceof ProductRowTimeout) throw new ProductStorageUnavailable();
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     const target = error.meta?.target;
     const adapter = error.meta?.driverAdapterError as
@@ -34,7 +37,9 @@ export function productDatabaseError(error: unknown): never {
     if (
       ['P1001', 'P1002', 'P1008', 'P1017', 'P2024', 'P2037'].includes(
         error.code,
-      )
+      ) ||
+      (error.code === 'P2010' &&
+        ['57014', '55P03'].includes(String(error.meta?.code)))
     ) {
       throw new ProductStorageUnavailable();
     }

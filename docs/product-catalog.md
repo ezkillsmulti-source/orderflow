@@ -1,9 +1,10 @@
 # Backend product catalog
 
-Creation, listing, detail reads, editing, and archiving are implemented. Inventory
-and orders remain pending. Authentication/catalog React screens and real-API
+Creation, listing, detail reads, editing, and archiving are implemented. Backend
+inventory is implemented separately; inventory UI and orders remain pending. Authentication/catalog React screens and real-API
 browser tests are implemented; see the [web walkthrough](development.md#manual-web-walkthrough).
-The catalog does not expose or persist stock.
+Catalog JSON does not expose writable stock fields; dedicated
+[inventory endpoints](inventory.md) own balances and immutable movements.
 
 ## Authentication and permissions
 
@@ -48,7 +49,7 @@ path parameters return 400; syntactically valid missing IDs return 404.
 ```
 
 Individual responses contain exactly id, sku, name, description, priceMinor,
-active, createdAt, and updatedAt. Timestamps are UTC ISO 8601 strings with
+active, image, createdAt, and updatedAt. Timestamps are UTC ISO 8601 strings with
 millisecond precision; description is a string or null. No raw Prisma models are
 returned. Currency is ARS; 100 minor units equal ARS 1.00.
 
@@ -113,7 +114,11 @@ Simultaneous edits use last-write-wins for submitted fields; optimistic locking 
 implemented. A SKU edit releases its previous value.
 
 Archive accepts an omitted body or an empty JSON object. Unknown fields and other body
-types are rejected. Archive changes active to false and never deletes a row. Only active
+types are rejected. Since milestone 4B, archival locks the product row and requires
+onHand=0. Positive stock returns sanitized 409: "Products with positive stock cannot
+be archived." No stock is cleared. This intentionally changes the prior archival
+contract; stock must be corrected with recorded movements before archive. Archive
+changes active to false and never deletes a row. Only active
 rows are updated; an already archived row is read without a write. Repeating archive
 returns the existing representation without changing updatedAt. No reactivation or
 physical deletion endpoint is planned in this task. Future orders must reject archived
@@ -123,30 +128,32 @@ products and preserve immutable snapshots; orders are not implemented.
 
 Errors retain the existing envelope: statusCode and a fixed English message.
 
-| Status | Meaning                                                      |
-| ------ | ------------------------------------------------------------ |
-| 400    | Invalid body, encoding, UUID, or list query                  |
-| 401    | Missing/expired/revoked session or inactive account          |
-| 403    | Role, CSRF, or Origin denial                                 |
-| 404    | Product does not exist                                       |
-| 409    | Product conflict: duplicate SKU; edit of an archived product |
-| 413    | Request body too large                                       |
-| 429    | Existing shared throttle, with Retry-After                   |
-| 503    | Identified storage availability failure                      |
-| 500    | Unexpected internal failure                                  |
+| Status | Meaning                                                  |
+| ------ | -------------------------------------------------------- |
+| 400    | Invalid body, encoding, UUID, or list query              |
+| 401    | Missing/expired/revoked session or inactive account      |
+| 403    | Role, CSRF, or Origin denial                             |
+| 404    | Product does not exist                                   |
+| 409    | Duplicate SKU, archived edit, or positive-stock archival |
+| 413    | Request body too large                                   |
+| 429    | Existing shared throttle, with Retry-After               |
+| 503    | Identified storage availability failure                  |
+| 500    | Unexpected internal failure                              |
 
-Catalog conflicts use "Product conflict."; catalog availability failures use
+Catalog conflicts use "Product conflict." except the explicit positive-stock
+archival message above; catalog availability failures use
 "Product storage unavailable.". Existing authentication messages are unchanged.
-Only the identified Product SKU unique violation maps to 409. Known connection,
+Only the identified Product SKU unique violation maps to a SKU conflict. Known connection,
 query/pool timeout, connection closure, and connection-capacity Prisma codes map
 to 503; unknown database errors remain sanitized 500. No raw driver errors, SQL,
 constraints, or submitted values appear in error responses.
 
-The service uses single conditional writes with returned rows, rather than a
-read/modify/write sequence or a transaction around a lone update. SKU conflicts roll
+Edits use a single conditional write with returned rows. Archive uses a short
+transaction locking Product, checking zero stock, and conditionally updating active
+status, coordinating with adjustments and image publication. SKU conflicts roll
 back the whole statement. Read fallback only distinguishes missing/archived IDs or
 returns an existing archive; it does not authorize a later unconditional write. No
-physical deletion or inventory operation exists.
+physical deletion endpoint exists; inventory operations have their own contract.
 
 For an executable authenticated ADMIN/OPERATOR walkthrough, see
 [development](development.md#manual-catalog-walkthrough).

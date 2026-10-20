@@ -66,7 +66,8 @@ ownership checks remain pending.
 
 These behaviors are intended to be usable through the web application and enforced by
 the backend. Authentication and catalog workflows are implemented in the API and
-React application. Inventory and ordering remain planned requirements. The approved [catalog
+React application. Backend inventory is implemented; inventory UI and ordering
+remain planned requirements. The approved [catalog
 contract](product-catalog.md) defines validation and listing policies.
 
 ## Business rules
@@ -74,7 +75,8 @@ contract](product-catalog.md) defines validation and listing policies.
 ### Products and exact numeric values
 
 - Products have an ID, a unique SKU, name, description, price, and active status.
-  Archive products by setting active status to false; do not delete them. Archived
+  Archive products only at zero on-hand stock by setting active status to false;
+  positive stock returns 409 and is never silently cleared. Do not delete products. Archived
   products cannot be added to new orders. Existing order references remain valid.
 - Currency is ARS. Store and calculate monetary values as integer minor units:
   100 minor units = ARS 1.00. Prices may be zero but never negative.
@@ -207,11 +209,13 @@ are outside the current architecture direction.
 - Product IDs use UUIDs and stored SKUs are currently case-sensitive. Other ID formats remain future decisions. The
   [catalog contract](product-catalog.md) selects SKU/text limits, archive visibility,
   and no reactivation for this task.
-- Define the adjustment-history interface and access policy.
+- Backend inventory history, permissions and idempotency are implemented in the
+  [inventory contract](inventory.md). The inventory UI remains milestone 4C.
 - Catalog listing policy is implemented in the [catalog contract](product-catalog.md).
-  Decide required customer information and listing policies for future orders and
-  inventory history.
-- Define idempotency key format, request-content canonicalization, and retention
-  policy without weakening duplicate protection for accepted retries.
+  Decide required customer information and listing policies for future orders.
+  Inventory history pagination is documented in the inventory contract.
+- Inventory adjustments use retained per-actor UUID v4 keys and normalized payload
+  comparison as documented in the inventory contract. Order idempotency details
+  remain to be selected without weakening accepted retry guarantees.
 - Before later milestones, define fulfillment, payment effects on order state,
   reservation-expiration policy, and tenant boundaries.
