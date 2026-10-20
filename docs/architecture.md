@@ -86,8 +86,8 @@ These single-row writes need no explicit multi-statement transaction. No prior m
 changes or new migration are required.
 
 The backend catalog and role authorization are implemented. Order ownership checks
-remain pending. See the [catalog contract](product-catalog.md). There is no inventory,
-orders, Redis, or worker. Future business features remain governed by the
+remain pending. See the [catalog contract](product-catalog.md). Inventory balance/history reads are implemented; adjustment writes are a following
+commit. There are no orders, reservations, Redis, or worker. Future business features remain governed by the
 [product scope](product-scope.md). See the
 [decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
 choices.
@@ -146,3 +146,12 @@ FormData mutations use the existing session/CSRF client and generation boundarie
 Active ADMIN details own one ephemeral file selection/preview and explicit image
 mutations; OPERATOR and archives remain read-only. Preview URLs are revoked on view
 or session changes. Uncertain writes require an explicit state read before retry.
+
+## Inventory
+
+InventoryModule uses a focused controller/service and DatabaseService, with explicit
+validation and response mapping. Balance/history reads are authenticated for both
+roles, including archives. Product holds zero-default BIGINT balance/sequence;
+InventoryAdjustment holds immutable movement metadata. Catalog responses and image
+storage remain unchanged. See [inventory contract](inventory.md) and
+[ADR 0006](decisions/0006-inventory-ledger.md). Inventory UI remains milestone 4C.

@@ -15,7 +15,7 @@ export const test = base.extend<{ database: Client }>({
     await database.connect();
     try {
       await database.query(
-        'TRUNCATE "Product", "ProductImage", http_session, login_limit',
+        'TRUNCATE "InventoryAdjustment", "Product", "ProductImage", http_session, login_limit',
       );
       await database.query(
         'UPDATE "User" SET active=true, role=CASE WHEN email=$1 THEN \'ADMIN\'::"Role" ELSE \'OPERATOR\'::"Role" END',

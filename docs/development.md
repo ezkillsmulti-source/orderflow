@@ -1024,3 +1024,31 @@ computed text/focus contrast and 320px page reflow were checked. Automated check
 not establish complete accessibility compliance. Firefox, WebKit, physical devices,
 production HTTPS and hosted CI for the unpushed frontend branch were not tested.
 No private screenshots, credentials, storage state or uploaded files are tracked.
+
+## Inventory backend development
+
+The [inventory API](inventory.md) defines exact quantity strings, authenticated
+balance/history reads and bounded cursor pagination. Apply new migrations with
+`pnpm db:migrate`; never use db push or alter historical migrations. Products and
+images survive migration with zero initial stock and no synthetic movements.
+
+Inventory tests create/drop random databases on TEST_DATABASE_ADMIN_URL. An
+administrative TRUNCATE resets all related tables in those isolated databases;
+movement UPDATE/DELETE protections stay enabled. The browser fixture includes the
+new related table in its isolated reset. No application storage or database is used.
+
+Run the focused real-database tests with the pinned toolchain from the root:
+
+```sh
+pnpm --filter @orderflow/api test:integration --testPathPatterns=inventory.integration
+```
+
+The full root checks remain `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test`, `pnpm test:integration`, and `pnpm build`. Adjustment API walkthrough
+and write verification are added with the next coherent implementation commit.
+
+The read/persistence increment passed root formatting, lint and API/web typechecks,
+105 API unit/HTTP tests, both builds, and 26 focused PostgreSQL checks across
+inventory, historical-schema upgrades and foundation suites. Upgrade tests seed
+historical tables with SQL because the current Prisma client inserts new defaulted
+columns even when old fields alone are selected. No historical migration was edited.

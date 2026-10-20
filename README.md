@@ -107,3 +107,7 @@ accessible absent/failed-load fallbacks. Active ADMIN details support local prev
 explicit image upload/replacement, and confirmed removal. See the
 [catalog contract](docs/product-catalog.md) and
 [storage ADR](docs/decisions/0005-product-image-storage.md).
+
+Inventory balance/history reads and zero-initialized persistence are implemented
+in the backend. Adjustment writes are pending the next task commit; inventory UI
+(4C) and reservations remain pending. See the [inventory contract](docs/inventory.md).

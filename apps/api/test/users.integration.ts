@@ -70,28 +70,23 @@ describe('user persistence', () => {
     const upgrade = await createTestDatabase();
     try {
       upgrade.migrate(true);
-      const product = await upgrade.client.product.create({
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          description: true,
-          priceMinor: true,
-          active: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        data: {
-          sku: 'UPGRADE',
-          name: 'Preserved',
-          priceMinor: 9007199254740991n,
-        },
-      });
+      // The current Prisma client inserts newly defaulted columns, so seed the
+      // historical schema with SQL before applying the additive migrations.
+      const [product] = await upgrade.client.$queryRaw<object[]>`
+        INSERT INTO "Product" (id, sku, name, "priceMinor", "updatedAt")
+        VALUES (gen_random_uuid(), 'UPGRADE', 'Preserved', 9007199254740991, now())
+        RETURNING *`;
+      const productId = (product as { id: string }).id;
       upgrade.migrate();
       upgrade.migrate();
       expect(
-        await upgrade.client.product.findUnique({ where: { id: product.id } }),
-      ).toEqual({ ...product, imageId: null });
+        await upgrade.client.product.findUnique({ where: { id: productId } }),
+      ).toEqual({
+        ...product,
+        imageId: null,
+        onHand: 0n,
+        inventorySequence: 0n,
+      });
       await expect(
         upgrade.client.product.create({
           data: { sku: 'BAD', name: 'Invalid', priceMinor: -1n },
@@ -107,6 +102,7 @@ describe('user persistence', () => {
         { migration_name: '20261019020000_http_sessions' },
         { migration_name: '20261019030000_login_limits' },
         { migration_name: '20261020000000_product_images' },
+        { migration_name: '20261020010000_inventory' },
       ]);
     } finally {
       await upgrade.close();

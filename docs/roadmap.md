@@ -80,8 +80,9 @@ deferred; this completion does not imply deployment or full accessibility compli
 
 ## 4B/4C. Accountable inventory
 
-Both remain planned: 4B delivers the backend inventory rules; 4C delivers the
-agreed inventory workspace using real API data. Image work does not implement stock.
+4B balance/history reads and zero-initialized persistence are implemented; atomic
+adjustment writes follow in the next task commit. 4C remains planned and delivers
+the inventory workspace using real API data. Reservations remain milestone 5.
 
 Deliver available-stock visibility and administrator adjustments using signed
 integer deltas, non-empty reasons, and authenticated actors. Select the

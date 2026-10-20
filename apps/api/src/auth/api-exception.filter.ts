@@ -10,6 +10,7 @@ import {
   ProductStorageUnavailable,
 } from '../products/product.errors.js';
 import { ImageUnavailable } from '../products/images/image.errors.js';
+import { InventoryUnavailable } from '../inventory/inventory.errors.js';
 import { isHealthRequest } from './http-path.js';
 
 /** Fixed responses also prevent JSON parser and driver errors from echoing credentials. */
@@ -55,17 +56,19 @@ export class ApiExceptionFilter implements ExceptionFilter {
       if (body.retryAfter) res.setHeader('Retry-After', body.retryAfter);
     }
     const message =
-      error instanceof ImageUnavailable
-        ? 'Product image storage unavailable.'
-        : error instanceof ProductConflict
-          ? 'Product conflict.'
-          : error instanceof ProductStorageUnavailable
-            ? 'Product storage unavailable.'
-            : status === 401 &&
-                error instanceof HttpException &&
-                error.message === 'Invalid email or password.'
-              ? 'Invalid email or password.'
-              : (messages[status] ?? 'Request failed.');
+      error instanceof InventoryUnavailable
+        ? 'Inventory storage unavailable.'
+        : error instanceof ImageUnavailable
+          ? 'Product image storage unavailable.'
+          : error instanceof ProductConflict
+            ? 'Product conflict.'
+            : error instanceof ProductStorageUnavailable
+              ? 'Product storage unavailable.'
+              : status === 401 &&
+                  error instanceof HttpException &&
+                  error.message === 'Invalid email or password.'
+                ? 'Invalid email or password.'
+                : (messages[status] ?? 'Request failed.');
     res.status(status).json({ statusCode: status, message });
   }
 }

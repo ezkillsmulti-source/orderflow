@@ -13,13 +13,14 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(254)
+  adjustments  InventoryAdjustment[]
+  id           String                @id @default(uuid()) @db.Uuid
+  email        String                @unique @db.VarChar(254)
   passwordHash String
   role         Role
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  active       Boolean               @default(true)
+  createdAt    DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime              @updatedAt @db.Timestamptz(3)
 }
 
 enum ProductImageState {
@@ -47,16 +48,19 @@ model ProductImage {
 }
 
 model Product {
-  id          String        @id @default(uuid()) @db.Uuid
-  imageId     String?       @unique @db.Uuid
-  image       ProductImage? @relation(fields: [imageId], references: [id], onDelete: Restrict)
-  sku         String        @unique
-  name        String
-  description String?
-  priceMinor  BigInt        @db.BigInt
-  active      Boolean       @default(true)
-  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  onHand            BigInt                @default(0) @db.BigInt
+  inventorySequence BigInt                @default(0) @db.BigInt
+  adjustments       InventoryAdjustment[]
+  id                String                @id @default(uuid()) @db.Uuid
+  imageId           String?               @unique @db.Uuid
+  image             ProductImage?         @relation(fields: [imageId], references: [id], onDelete: Restrict)
+  sku               String                @unique
+  name              String
+  description       String?
+  priceMinor        BigInt                @db.BigInt
+  active            Boolean               @default(true)
+  createdAt         DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @db.Timestamptz(3)
 }
 
 model HttpSession {
@@ -75,4 +79,21 @@ model LoginLimit {
 
   @@index([expire])
   @@map("login_limit")
+}
+
+model InventoryAdjustment {
+  id             String   @id @default(uuid()) @db.Uuid
+  productId      String   @db.Uuid
+  sequence       BigInt   @db.BigInt
+  delta          BigInt   @db.BigInt
+  reason         String
+  balanceAfter   BigInt   @db.BigInt
+  actorId        String   @db.Uuid
+  createdAt      DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(3)
+  idempotencyKey String   @db.Uuid
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor          User     @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([productId, sequence])
+  @@unique([actorId, idempotencyKey])
 }

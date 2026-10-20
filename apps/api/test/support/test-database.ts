@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, cpSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  cpSync,
+  rmSync,
+  writeFileSync,
+  readdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Client } from 'pg';
@@ -44,18 +50,25 @@ export async function createTestDatabase() {
     await close();
     throw error;
   }
-  function migrate(initialOnly = false) {
+  function migrate(initialOnly: boolean | string = false) {
     const directory = mkdtempSync(join(tmpdir(), 'orderflow-test-migrations-'));
     try {
       const migrations = initialOnly
         ? join(directory, 'migrations')
         : resolve('prisma/migrations');
       if (initialOnly) {
-        cpSync(
-          resolve('prisma/migrations/20261019000000_initial_product'),
-          join(migrations, '20261019000000_initial_product'),
-          { recursive: true },
-        );
+        const through =
+          initialOnly === true ? '20261019000000_initial_product' : initialOnly;
+        for (const entry of readdirSync(resolve('prisma/migrations'), {
+          withFileTypes: true,
+        })) {
+          if (entry.isDirectory() && entry.name <= through)
+            cpSync(
+              resolve('prisma/migrations', entry.name),
+              join(migrations, entry.name),
+              { recursive: true },
+            );
+        }
         cpSync(
           resolve('prisma/migrations/migration_lock.toml'),
           join(migrations, 'migration_lock.toml'),
