@@ -2,8 +2,8 @@
 
 Milestone 3 redesigns the existing React product workspace. The API, session/CSRF
 client, exact monetary conversion, permissions, pagination bounds, and mutation
-retry policy remain authoritative and unchanged. Inventory and orders are later
-milestones; navigation must contain working destinations only.
+retry policy remain authoritative and unchanged. Inventory frontend delivery is tracked separately in [project status](project-status.md);
+orders are planned. Navigation contains working destinations only.
 
 ## Direction and hierarchy
 
@@ -107,22 +107,11 @@ The dialog itself has no tabindex; focus targets its action buttons.
 
 ## Verification and limitations
 
-Initial inspection used Playwright with the real API and random migrated test
-databases on a separate PostgreSQL container; no local application data was used.
-Before captures covered login, catalog, details, create/edit, and archive confirmation
-at 1280x900 and 390x844. Concrete issues were left-aligned prices, absent application
-navigation, an empty state without an administrator creation path, and ungrouped form
-content with technical concurrency copy.
-
-Final checks passed: 43 web tests, 30 real-API Chromium browser checks, root
-formatting/lint/typecheck, and API/web builds. Rendered login, catalog, detail,
-create/edit, and confirmation were inspected at desktop and narrow mobile sizes.
-Token contrast checks run in the web unit suite. Browser checks measure computed
-foreground/background combinations, control borders, and visible focus outlines;
-they exercise keyboard filters, error associations, modal focus/restoration, long
-content, maximum money, and page reflow down to 320px.
-The token suite checks 18 text combinations and 12 control/focus combinations,
-using unrounded relative luminance. Representative measured combinations:
+`apps/web/test/design.test.ts` checks token contrast; browser helpers in
+`apps/web/e2e/design-checks.ts` measure actual computed text, boundaries and focus.
+Targets are 4.5:1 for normal text and 3:1 for relevant non-text indicators. The
+following previously recorded token calculations are design reference values,
+not a fresh visual or accessibility audit:
 
 | Foreground / background           | Contrast |
 | --------------------------------- | -------- |
@@ -137,23 +126,12 @@ using unrounded relative luminance. Representative measured combinations:
 | Warning / warning surface         | 6.02:1   |
 | Error / error surface             | 6.59:1   |
 
-Browser assertions additionally check actual computed styles on login controls,
-normal/hover primary actions, alerts, filter selection/focus, catalog text, form
-labels/help/errors, input boundaries/focus, the table scroll region, and archive
-warning/actions. Decorative separators do not identify required controls.
-Private synthetic captures stay outside Git and are never CI artifacts. This work
-does not claim full accessibility compliance, screen-reader certification, support
-for every browser/device, or production hosting.
-
-No applicable frontend-design/UI/UX skill was available in this environment. The
-implementation uses local code, Playwright, and W3C references; no skill was installed.
-
-## Review feedback
-
-The user inspected the isolated local preview and reported that the design looks
-good and works correctly. This is user feedback from manual use, recorded separately
-from the automated verification above; it is not an additional test run, a complete
-acceptance audit, or proof of accessibility compliance.
+Behavior checks cover keyboard filters/pagination, named scroll regions, form
+errors, modal focus/restoration, long content, exact maximum money and selected
+320px reflow cases. Private synthetic captures are not public CI artifacts.
+Chromium automation does not establish full accessibility compliance, screen-reader
+certification or coverage of every browser/device. Delivery state and SHA-bound
+verification evidence belong in [project status](project-status.md).
 
 ## Primary image display (milestone 4A)
 
@@ -187,11 +165,3 @@ the safe action to Check image status and disables repeated removal. Confirmed
 mutations refresh the server record and focus the product heading. Archived products
 and OPERATOR keep the complete image display without management controls. No nested
 dialog, gallery, remote URL import, crop editor, or extra navigation is added.
-
-Image frontend verification passed locally: 58 web tests and all 52 real-API browser
-cases (20 image cases) at desktop/mobile viewports. Actual image decoding, keyboard
-modal actions/restoration, upload error focus, computed helper/action/error text and
-focus contrast, and 320px reflow were asserted. Private synthetic captures of the
-catalog, details, fallbacks, selection, validation and removal modal were inspected
-at 1280x900 and 390x844. Existing burgundy/semantic tokens are reused. This is not a
-full accessibility audit or proof for untested browser engines/devices.

@@ -1,114 +1,82 @@
 # OrderFlow
 
-OrderFlow is a planned application for small businesses to manage products, inventory,
-and orders. The backend foundation is implemented: a NestJS API, PostgreSQL/Prisma
-schema and initial migration, health routes, automated tests, and a GitHub Actions
-workflow. User persistence with normalized unique emails and ADMIN/OPERATOR roles,
-Argon2id password hashing, and explicit development account provisioning are
-implemented. Session login/identity/logout, PostgreSQL-backed sessions, CSRF protection,
-and shared login throttling are implemented. The backend catalog implements product
-creation, listing, detail reads, editing, and archiving with current-role authorization.
-The React/Vite application in `apps/web` implements login, identity restoration,
-logout, product browsing/detail reads, and administrator creation, editing, and
-archival. Both roles can read archived products. Backend inventory balances/history and
-idempotent ADMIN adjustments are implemented; inventory UI and orders remain planned.
-Milestone 3 implements a warm burgundy product workspace with clear filters,
-role-aware actions, grouped forms, and responsive keyboard-accessible browsing.
-Inventory UI and later milestones remain planned. See the [UI design guide](docs/ui-design.md).
-See the [frontend startup instructions](docs/development.md#react-frontend).
+OrderFlow is a single-business product and inventory application. Administrators
+maintain the catalog and stock records; operators browse products and inventory.
+Order creation and reservations are planned, not implemented.
 
-## Local setup
+This documentation follows the merged implementation baseline in
+[project status](docs/project-status.md). **Inventory frontend 4C is implemented
+only on an unmerged local branch**, not on the main frontend documented here.
 
-Requirements: Node.js **24.22.0 LTS**, pnpm **10.34.7**, and Docker with Compose v2
-supporting `up --wait`. See [development](docs/development.md) for installing the
-pinned toolchain and configuration details. From the repository root:
+Merged capabilities include session login/logout, current-role authorization,
+exact ARS prices, catalog create/read/edit/archive, primary image management and
+the inventory backend with immutable, idempotent adjustments. The React UI covers
+authentication, catalog and images. Positive stock prevents archival.
 
-```bash
-test -e .env || cp .env.example .env
-# Replace the local database password and generate SESSION_SECRET as documented.
+## Architecture overview
+
+React/Vite and strict TypeScript form the frontend. NestJS is a modular monolith
+using Prisma/pg and PostgreSQL 17; images use Multer, sharp and private disk storage.
+There is no worker, Redis or generic repository layer.
+
+```mermaid
+flowchart LR
+    Browser["Browser: React UI"] -->|"UI and /api requests"| Vite["Vite server / proxy<br/>development only"]
+    Vite -->|"Strip /api; preserve Origin"| API["NestJS API<br/>Auth / Products / Inventory / Health"]
+    API -->|"Prisma and session pools"| DB[(PostgreSQL)]
+    API -->|"ImageStorage read/write"| Files["Private image directory"]
+```
+
+The browser uses HttpOnly session cookies and memory-only CSRF tokens. Image reads
+also pass through authenticated API routes. Vite's proxy is **not production
+hosting**; production needs a same-origin HTTPS proxy, persistent storage and an
+operational deployment plan. See [architecture](docs/architecture.md).
+
+## Quick start
+
+Prerequisites: Node **24.22.0**, pnpm **10.34.7**, and an accessible Docker daemon
+with Compose v2 supporting `up --wait`. No version manager is assumed.
+
+First follow [environment and local PostgreSQL](docs/development.md#environment-and-local-postgresql):
+preserve an existing `.env`, replace example placeholders locally, confirm database
+credentials/volume ownership, configure trusted origins and optionally private image
+storage. Then run from the repository root:
+
+```sh
 pnpm install --frozen-lockfile
 docker compose up -d --wait postgres
 pnpm db:generate
 pnpm db:migrate
+pnpm users:provision:dev
 pnpm dev
 ```
 
-Start the frontend in another terminal and open http://127.0.0.1:5173:
+Migrations and provisioning mutate the selected development database. Provisioning
+creates or validates accounts; it never resets existing passwords, roles or status.
+Run `pnpm dev:web` in another terminal. Open http://127.0.0.1:5173; the API listens
+on http://127.0.0.1:3000 by default. Use your local configured credentials.
+Ctrl-C stops each application process; `docker compose stop postgres` preserves data.
 
-```bash
-pnpm dev:web
-```
+The [command reference](docs/development.md) covers runtime selection, every workspace
+script, isolated tests, health checks, migration authoring, image cleanup and recovery.
+Do not use application data as a test database.
 
-Include `http://127.0.0.1:5173` in AUTH_TRUSTED_ORIGINS and provision development
-accounts as described below. The Vite proxy is for development, not production hosting.
-To check API health:
+## Reading map
 
-```bash
-curl --fail http://127.0.0.1:3000/health/live
-curl --fail http://127.0.0.1:3000/health/ready
-```
+| Document                                                           | Use it for                                                                   |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| [Project status](docs/project-status.md)                           | Baseline SHAs, merged vs local work, evidence, debt and next-task acceptance |
+| [Feature guide](docs/features.md)                                  | Roles, user workflows, security boundaries and API entry points              |
+| [Architecture](docs/architecture.md)                               | Module/data responsibilities, persistence and inventory sequence diagram     |
+| [Development and operations](docs/development.md)                  | Setup, commands, testing, troubleshooting, storage and safe stopping         |
+| [Catalog and image contract](docs/product-catalog.md)              | Exact requests, responses, validation, pagination and image lifecycle rules  |
+| [Inventory contract](docs/inventory.md)                            | Balances/history, transactions, locks and idempotency                        |
+| [UI design](docs/ui-design.md)                                     | Burgundy tokens, hierarchy, responsive behavior, focus and limitations       |
+| [Product scope](docs/product-scope.md), [roadmap](docs/roadmap.md) | Business requirements and future acceptance criteria                         |
+| [ADRs](docs/decisions/0001-backend-foundation.md)                  | Decisions 0001–0006, alternatives, consequences and historical follow-ups    |
+| [Contributing](CONTRIBUTING.md)                                    | Human development, focused commits and protected integration workflow        |
 
-Both return `{"status":"ok"}` with HTTP 200 when PostgreSQL is available.
-Readiness returns HTTP 503 and `{"status":"not_ready"}` when PostgreSQL is
-unavailable; liveness stays independent. Use Ctrl-C to stop the API. For compiled
-execution, run `pnpm build` then `pnpm --filter @orderflow/api start`.
-
-To provision development users, configure NODE_ENV=development, DEV_ADMIN_EMAIL,
-DEV_ADMIN_PASSWORD, DEV_OPERATOR_EMAIL, and DEV_OPERATOR_PASSWORD locally, then
-run `pnpm users:provision:dev` after migrations. See the [manual provisioning
-procedure](docs/development.md#development-account-provisioning) for credential
-handling, repeat behavior, and conflicts. Provisioning is never automatic.
-
-Authentication endpoints are `GET /auth/csrf`, `POST /auth/login`, `GET /auth/me`,
-and `POST /auth/logout`. Follow the [API contract and curl walkthrough](docs/development.md#authentication-api)
-to use cookies, trusted Origin, and session-bound CSRF tokens. Sessions expire
-after 30 idle minutes or eight hours total and work across configured API instances.
-All instances must share PostgreSQL and SESSION_SECRET.
-
-## Verification
-
-```bash
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:integration
-pnpm build
-pnpm --filter @orderflow/web browser:install
-pnpm test:browser
-```
-
-Integration checks require TEST_DATABASE_ADMIN_URL from `.env` and create/drop a
-random database on the dedicated local PostgreSQL server. They never use the
-application database. See [development](docs/development.md) for isolation,
-migrations, shutdown, and troubleshooting. CI runs these checks on pull requests
-and pushes to `main`; adding the workflow does not imply a hosted run has passed.
-
-## Scope and documents
-
-There is no public registration, password recovery, production account
-provisioning, inventory UI, ordering, Redis, worker, or deployment yet. Catalog endpoints
-enforce ADMIN writes and ADMIN/OPERATOR reads, including archived products. Order
-ownership authorization remains pending. See the [catalog
-contract](docs/product-catalog.md). React/Vite and Chromium browser tests are implemented. Background processing will
-be added only when needed.
-
-- [Product scope and business rules](docs/product-scope.md)
-- [Roadmap and current progress](docs/roadmap.md)
-- [Current architecture](docs/architecture.md)
-- [Development workflow](docs/development.md)
-- [Architecture decisions](docs/decisions/0001-backend-foundation.md)
-- [Contributing](CONTRIBUTING.md)
-- [Instructions for coding agents](AGENTS.md)
-
-The backend supports validated primary product image upload/replacement/removal,
-private authenticated variant reads, recoverable cleanup, and image metadata in
-catalog responses. The web catalog displays thumbnails and detail images with
-accessible absent/failed-load fallbacks. Active ADMIN details support local preview,
-explicit image upload/replacement, and confirmed removal. See the
-[catalog contract](docs/product-catalog.md) and
-[storage ADR](docs/decisions/0005-product-image-storage.md).
-
-Inventory balances/history and atomic idempotent ADMIN adjustments are implemented
-in the backend. Positive stock prevents archival; corrections append compensating
-movements. Inventory UI (4C) and reservations remain pending. See the [inventory contract](docs/inventory.md).
+Production account provisioning, deployment/restore drills, orders, reservations,
+payments and tenant isolation remain outside the implemented scope. Historical CI
+and browser evidence is linked by SHA in project status; it is not a claim of
+production readiness or complete accessibility compliance.

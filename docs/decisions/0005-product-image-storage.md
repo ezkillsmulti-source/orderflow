@@ -2,6 +2,10 @@
 
 Status: accepted for milestone 4A backend.
 
+Follow-up note: the image frontend is included in the documented main baseline.
+Its availability and inventory acceptance are tracked in
+[project status](../project-status.md); the storage lifecycle decision is unchanged.
+
 One optional primary image belongs to a product. PostgreSQL stores ownership,
 version, variant dimensions, and lifecycle state. Bytes reside in a private local
 directory outside Git and web sources. Authenticated current-role checks protect

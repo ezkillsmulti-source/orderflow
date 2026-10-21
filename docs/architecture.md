@@ -1,169 +1,192 @@
 # Architecture
 
-OrderFlow currently has one NestJS REST API and one PostgreSQL database. It is a
-modular monolith: one process, with explicit module dependencies and no generic
-repository layer or shared workspace package.
+OrderFlow is a modular monolith: one NestJS API process, one PostgreSQL database
+and a React frontend. Private image bytes live outside the repository. The
+[component/data-flow diagram](../README.md#architecture-overview) shows implemented
+components only. Delivery state, especially local-only 4C, is in
+[project status](project-status.md); future components belong in the roadmap.
 
-## Current modules
+## Module responsibilities
 
-- `AppModule` composes configuration, health, authentication, and products.
-- `ConfigModule` validates the database URL and API port, exposing one configuration
-  provider. Invalid configuration prevents startup; values are not printed.
-- `DatabaseModule` owns one Prisma client and its PostgreSQL driver adapter. The
-  pool is lazy: an unavailable database does not prevent liveness from starting.
-  Nest shutdown hooks disconnect the client and release the adapter's pool.
-- `HealthModule` exposes two public health routes, outside the session pipeline.
-- `SessionModule` provides express-session with a PostgreSQL store for non-health
-  routes. It manages bounded expired-session/limiter cleanup and closes its separate,
-  bounded pool on shutdown. Configuration and lifetimes are in [ADR 0004](decisions/0004-session-authentication.md).
-- `AuthModule` installs session loading before origin/CSRF/shared-admission checks,
-  exposes CSRF/login/me/logout, and registers a default authentication guard followed by a role guard.
-  Routes can declare explicit allowed roles through `@Roles`; the role guard uses
-  only the freshly authenticated identity and runs before controllers or services.
-  Routes without role metadata retain their existing authentication policy.
-  Protected routes read current User status and role. A fixed-response exception
-  filter prevents parser and infrastructure details from echoing input or being logged.
+| Module / boundary                   | Business purpose                                 | Technical responsibility                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AppModule                           | Compose the application                          | Imports configuration, health, auth, products and inventory                                                                                               |
+| ConfigModule                        | Reject unusable startup settings                 | Validates database URL/port; auth configuration validates secret, origins and explicit proxy trust without echoing values                                 |
+| DatabaseModule                      | Share business persistence                       | Owns Prisma/pg client, lazy bounded pool, readiness probe and shutdown disconnect; no generic repository                                                  |
+| HealthModule                        | Distinguish live process from reachable database | Public liveness and bounded readiness outside the session pipeline                                                                                        |
+| SessionModule / AuthModule          | Identify permitted active users                  | PostgreSQL sessions, CSRF/origin/admission middleware, login throttling, current-identity authentication then role guard; fixed-response exception filter |
+| Users CLI and PasswordService       | Provision development identities safely          | Normalized email, Argon2id and one explicit transactional account-pair operation; no account-management HTTP API                                          |
+| ProductsModule                      | Maintain a durable catalog                       | Controller validation/response mapping, exact prices, conditional active edits and archive transaction                                                    |
+| Image classes within ProductsModule | Associate one display image with a product       | Multipart admission, content processing, candidate lifecycle, row-locked publication, authenticated streams and bounded cleanup                           |
+| InventoryModule                     | Make stock changes accountable                   | Exact balance/history reads and atomic idempotent ADMIN adjustments using DatabaseService                                                                 |
+| React application                   | Make permitted catalog work usable               | SessionClient, hash navigation, explicit response validation, exact formatting and view-owned forms/previews; backend remains authoritative               |
 
-`GET /health/live` returns HTTP 200 and `{"status":"ok"}` without accessing the
-pool. `GET /health/ready` runs `SELECT 1` through Prisma and returns the same success
-body, or HTTP 503 with `{"status":"not_ready"}`. The response contains no database
-errors or configuration. Readiness checks connectivity, not migration currency;
-apply migrations before serving the application.
+Controllers validate wire formats/IDs/query strings and map safe DTOs. Services
+express business rules and short transactions directly through DatabaseService.
+The shared `products/product-row.ts` helper is the lock protocol for inventory,
+archive and image publication/removal. External image processing and filesystem
+operations remain outside those transactions. This keeps locks short and avoids a
+speculative repository, asset framework or worker.
 
-The readiness deadline is 1.5 seconds; pool connection acquisition, driver query
-waiting, and PostgreSQL statement execution each have a 1-second timeout. Timer
-scheduling can add small delays under load. Concurrent probes share one pending
-query and one deadline. After timeout, later probes reuse the settled failure
-result until that query settles; they do not attach more observers or start more
-queries. A completed query permits the next probe, allowing recovery. This bounds
-pending database work and retained observers during outages. These small pool
-settings are for the foundation; assess capacity when business requests exist.
+## Request and session boundaries
 
-## Persistence boundary
+For non-health routes, session loading precedes Origin/admission/CSRF middleware.
+The authentication guard then reloads current User active status/role; role guards
+run before controller validation/product lookup and before upload interception.
+Unsafe requests can therefore receive 403 before reaching authentication's 401.
+Public auth routes opt out explicitly; new business routes are authenticated by
+default. Parser and driver errors are mapped to fixed messages, never raw errors.
 
-The existing `Product` table supports the implemented backend catalog. It has UUID
-identifiers, case-sensitive unique SKUs, nullable descriptions, bounded `BIGINT` prices
-in ARS minor units, active status, and timezone-aware timestamps. Prisma generates UUIDs
-and updates `updatedAt`; direct SQL writers must supply IDs and update timestamps. The
-SQL migration adds the price check constraint that Prisma schema syntax cannot
-represent. Future migrations must preserve it.
+The existing JSON parser retains its 100 KiB limit. Nest rawBody capture lets
+catalog/inventory UTF-8 validation reject malformed wire input before it is silently
+replaced. Multipart has separate bounded streaming handling; it does not weaken
+JSON limits or replace the unrelated auth parser contract.
 
-The User table adds UUID identities, normalized unique emails, password hashes,
-explicit ADMIN/OPERATOR roles, active status, and timestamps. The email policy and
-database constraints are recorded in [ADR 0003](decisions/0003-user-accounts.md).
-Hashes remain internal; authentication responses expose only ID, email, and role.
+Sessions have idle/absolute deadlines and use conditional renewal, not an upsert
+that could recreate a logged-out row. Request-local creation saves reuse their
+first persistence result on duplicate response-end saves. Login regenerates the
+session and token before returning success. Session and limiter expiry cleanup is
+bounded per instance; failures do not relax authorization. Details and tradeoffs
+are preserved in [ADR 0004](decisions/0004-session-authentication.md).
 
-`PasswordService` is a small internal class using Argon2id through node-argon2.
-The explicit provisioning CLI uses Prisma directly and imports the shared email
-and password rules; it does not start Nest or listen on a port. One serializable
-transaction creates or validates the two development accounts. Its only result is
-created/unchanged counts. There is no generic user repository or additional service
-process. The auth module uses direct Prisma access and the same password rules.
+DatabaseService's business pool has maximum two connections and one-second connect,
+pg query and PostgreSQL statement deadlines. Readiness has a 1.5-second deadline,
+shares a pending probe, and reuses its failure until underlying work settles rather
+than accumulating observers/queries. Liveness never queries PostgreSQL. Readiness
+checks connectivity, not migration currency. Timer scheduling can delay responses
+under load; the client deadline alone does not cancel SQL.
 
-Sessions use express-session identifiers/signatures and connect-pg-simple storage.
-csrf-sync binds tokens to session state. rate-limiter-flexible uses atomic shared
-PostgreSQL counters for source/account login limits and global admission. Automatic
-table creation and unbounded library cleanup are disabled; migrations create both
-tables. Store/counter failures return sanitized 503 with no in-memory fallback.
+## Data model and migrations
 
-`ProductsModule` composes a focused controller/service with DatabaseModule. The
-controller validates bodies, path IDs, and original query strings, enforces wire
-encoding, and maps products to explicit JSON responses. Main enables Nest rawBody
-capture so invalid UTF-8 cannot be silently replaced before validation. Raw bytes
-are request-local and never logged or returned. Custom test applications exercising
-catalog writes must also enable rawBody=true.
+Prisma describes models, but handwritten migration SQL is also authoritative.
+Generation cannot substitute for migration deployment or preserve custom SQL by
+itself. There are seven ordered migrations at the selected baseline:
 
-ProductsService uses DatabaseService directly; PostgreSQL arbitrates SKU races.
-There is no repository abstraction. Monetary strings are validated before BigInt
-conversion and serialized explicitly. Catalog error types permit fixed conflict
-and availability messages without changing authentication contracts. Unrecognized
-failures remain sanitized 500.
+| Migration suffix  | Additive responsibility                                                                                                |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `initial_product` | Product UUID, case-sensitive unique SKU, bounded BIGINT price, active flag and timestamps                              |
+| `user_accounts`   | User identity, explicit Role enum, normalized-email constraint and unique index                                        |
+| `http_sessions`   | Session JSON/expiry with an expiry index                                                                               |
+| `login_limits`    | Shared limiter counters and expiry index                                                                               |
+| `product_images`  | Image lifecycle/dimensions, current Product image pointer and composite ownership foreign key                          |
+| `inventory`       | Zero onHand/sequence, bounded immutable attributed movements, foreign keys and actor/key + product/sequence uniqueness |
+| `stock_archive`   | SQL invariant `active OR onHand=0`                                                                                     |
 
-ProductsService edits with an atomic id/active=true predicate and returned row, and
-archives only active rows after locking Product and requiring zero onHand.
-A repeated archive reads the existing row without updating timestamps. Submitted fields use last-write-wins; optimistic locking is not implemented.
-Editing remains a single conditional write. Archive uses a short transaction
-shared with the inventory/image row-lock protocol. New inventory migrations add
-bounds and an archived-stock constraint; historical migrations remain unchanged.
+Product owns catalog fields, current image pointer and inventory balance/sequence.
+Image candidates carry product ownership intent before publication; the composite
+foreign key prevents assigning another product's published descriptor. User and
+Product movement foreign keys restrict deletion/update; history has an immutable
+UPDATE/DELETE statement trigger. Privileged TRUNCATE/DROP remains administrative,
+not a business operation. Isolated tests reset with those privileges without
+disabling production constraints.
 
-The backend catalog and role authorization are implemented. Order ownership checks
-remain pending. See the [catalog contract](product-catalog.md). Inventory balances/history
-and atomic idempotent adjustments are implemented. There are no orders, reservations,
-Redis, or worker. Future business features remain governed by the
-[product scope](product-scope.md). See the
-[decisions](decisions/0001-backend-foundation.md) for runtime, schema, and serialization
-choices.
+Prices, stock, sequences and movement values use PostgreSQL BIGINT and JavaScript
+bigint. Public business integers serialize as canonical decimal strings; there is
+no global BigInt JSON patch or raw Prisma response. SQL bounds remain tighter than
+BIGINT's native range. See [ADR 0002](decisions/0002-product-storage.md) and the
+[catalog](product-catalog.md) / [inventory](inventory.md) contracts.
 
-## Web application
+Prisma manages catalog `updatedAt`; direct SQL writers must manage it themselves.
+Inventory intentionally updates only balance/sequence and appends history, leaving
+catalog time and image metadata untouched. Product editing uses an atomic active
+predicate; submitted fields use last-write-wins without optimistic locking. Archive
+locks Product, requires zero stock and changes active state only once.
 
-apps/web adds a React/Vite application with strict TypeScript and plain CSS. Vite's
-local /api proxy preserves Origin and cookie attributes; the API continues to enforce
-authentication, roles, CSRF, and trusted origins. SessionClient owns memory-only CSRF and session identity. Epochs and AbortController
-prevent stale requests from restoring old account data. React subscribes through
-useSyncExternalStore; no global state framework or token persistence is used.
-Login/logout, catalog listing/detail reads, and administrator catalog forms are implemented.
-The [workspace design](ui-design.md) uses CSS tokens and small shared presentation
-components, keeping full-page detail/forms and one native archive dialog. Query-only
-navigation retains control focus; page navigation focuses the destination heading.
-Hash navigation
-keeps browser history without an extra router dependency. Read effects ignore
-results after unmount; session boundaries additionally reject stale requests.
-Monetary JSON strings are validated and formatted with bigint quotient/remainder,
-never Number division. Form prices use ungrouped decimal text with a dot and at most
-two fractional digits, converted using bigint. Client validation improves feedback;
-the backend remains authoritative for permissions, validation, SKU uniqueness, and
-active-only updates. PATCH sends only normalized changed fields. There is no
-optimistic locking. Confirmed writes navigate to or reload fresh server data.
+## Inventory adjustment sequence
 
-403 responses revalidate identity without assuming CSRF expiry or replaying the
-request. Mutations that lose their response report an uncertain outcome, preserve
-form input, and require deliberate action. Requests have a 15-second timeout;
-timeouts cannot prove whether a write committed. Native modal dialogs confirm
-archival and restore focus on cancellation. React renders product text, never HTML.
+This flow is implemented by the main **backend**. Its client can be an authenticated
+API caller; the product-detail inventory UI exists only on the local 4C branch.
 
-Root formatting/lint/typecheck/unit/build checks include the web package. Playwright
-uses the real API and a random, migrated PostgreSQL database with ephemeral accounts;
-its runner cleans up children and the database on success or failure. CI retains the
-backend checks and adds Chromium installation and browser workflows. Production web
-hosting and reverse-proxy configuration remain planned.
+```mermaid
+sequenceDiagram
+    participant C as API client
+    participant A as Auth and request protection
+    participant P as InventoryController
+    participant I as InventoryService
+    participant D as PostgreSQL
+    C->>A: POST /products/:id/inventory/adjustments + key
+    A->>D: Load session
+    Note over A: Check Origin, admission and CSRF
+    A->>D: Reload current active user and role
+    Note over A: Require ADMIN
+    A->>P: Authorized request
+    P->>P: Validate product ID, query, body and UUID v4 key
+    P->>I: Normalized product, delta, reason and key
+    I->>D: BEGIN; lock Product FOR UPDATE
+    I->>D: Find movement by actor and key
+    alt Existing key
+        D-->>I: Original movement
+        I->>I: Compare normalized product/delta/reason
+        I->>D: Release read transaction
+        I-->>C: 200 original + Idempotency-Replayed, or 409 mismatch
+    else New key
+        D-->>I: No movement
+        I->>I: Check active state, balance and sequence bounds
+        I->>D: UPDATE balance/sequence; INSERT movement; COMMIT
+        D-->>I: Committed movement
+        I-->>C: 201 movement
+    end
+    Note over I,D: Any rejected check or failed write rolls back the transaction
+```
 
-Product images remain in the ProductsModule with explicit response mapping and a
-small private local storage boundary. PostgreSQL tracks lifecycle candidates and
-retired versions; authenticated controllers stream current variants. See
-[ADR 0005](decisions/0005-product-image-storage.md). No public static directory or generic asset framework is introduced.
+Authorization precedes product lookup. Replay is checked before archived status and
+returns original historical data, not current balance. The actor/key namespace
+spans products. Each adjustment locks one product; no second product/key lock is
+introduced. An identified actor/key uniqueness loser rolls back fully, then reads
+the winning movement outside the aborted transaction and compares content. Unknown
+unique failures are not evidence of replay. No unbounded retry loop exists.
 
-For images, the controller validates identifiers and maps safe product descriptors;
-global authentication/role guards and request-protection middleware precede the
-multipart interceptor. The interceptor owns the receive budget and admission slots.
-ImageProcessor owns format checks and native normalization; ImagesService prepares
-candidates and owns short publication/removal transactions. Archive locks the product, requires zero stock and updates active status under
-the same PostgreSQL row lock. ImageStorage owns private fixed
-paths and file handles. ImageCleanup owns bounded transactional claims and recovery,
-without a generic repository layer or background worker. The additional SQL owner
-foreign key is intentional and must be retained when authoring future migrations.
+Row locks serialize decrements/overflow checks, archive and image publication;
+positive stock cannot be silently cleared by archive. Idempotency association and
+history commit with the balance. After an ambiguous commit acknowledgement, a
+client must deliberately reuse the same key/content; a balance read cannot prove
+whether that operation committed. SQL history/key retention is indefinite, not an
+exactly-once delivery promise. [ADR 0006](decisions/0006-inventory-ledger.md) explains
+the choice; [project status](project-status.md#lock-timeout-incident) records the
+structured SQLSTATE regression and evidence.
 
-The React catalog validates primary image descriptors against the exact application
-path before adding `/api` once. Native image requests use browser-managed cookies;
-FormData mutations use the existing session/CSRF client and generation boundaries.
-Active ADMIN details own one ephemeral file selection/preview and explicit image
-mutations; OPERATOR and archives remain read-only. Preview URLs are revoked on view
-or session changes. Uncertain writes require an explicit state read before retry.
+## Image persistence and recovery
 
-## Inventory
+ImageUploadInterceptor validates upload IDs/query/admission and registers a PENDING
+candidate before private file reception. ImageProcessor checks actual static format,
+decodes/re-encodes and strips metadata. ImageStorage owns private server-generated
+UUID directories and fixed filenames. ImagesService writes/syncs both variants,
+removes the original, then publishes under the Product row lock. The old image is
+retired only with successful publication; a failed new candidate cannot erase it.
 
-InventoryModule uses a focused controller/service and DatabaseService, with explicit
-validation and response mapping. Balance/history reads are authenticated for both
-roles, including archives. Product holds zero-default BIGINT balance/sequence;
-InventoryAdjustment holds immutable movement metadata. Catalog responses and image
-storage remain unchanged. See [inventory contract](inventory.md) and
-[ADR 0006](decisions/0006-inventory-ledger.md). Inventory UI remains milestone 4C.
+ImageCleanup claims eligible unreferenced candidates/retirements with SKIP LOCKED,
+then deletes outside the transaction. State/expiry checks prevent publication after
+a cleanup claim. DELETING leases and DELETED tombstones permit recovery after
+partial deletion or late writers. Ambiguous publication is not blindly deleted;
+only an unpublished candidate can be abandoned. Missing current files return 503
+and need restoration or deliberate API replacement/removal.
 
-Inventory writes lock Product FOR UPDATE through the same lockProduct helper as
-archive and image publication/removal. One transaction checks replay before active
-status, validates bigint results, updates balance/sequence with SQL that preserves
-catalog updatedAt, and inserts the immutable movement. Uniqueness spans actor/key,
-not product/key. Cross-product collisions are resolved after transaction rollback
-by reading the successful movement; no second product lock or automatic retry is
-introduced. Only identified conflicts/timeouts are mapped; unknown errors remain
-sanitized 500. SQL prevents positive-stock archives and history UPDATE/DELETE.
-There is no inventory UI, reservation persistence, worker or generic repository.
+Database and filesystem are not one transaction. Durable writes, persisted lifecycle
+state and reference exclusion support recovery, not a universal power-loss guarantee.
+Persistent/shared storage must match deployment topology; coordinated DB/file backups
+and cleanup monitoring are operational responsibilities. Object storage is deferred
+behind the focused boundary. See [ADR 0005](decisions/0005-product-image-storage.md)
+and [cleanup operations](development.md#image-cleanup-and-recovery).
+
+## Frontend boundary
+
+React uses strict TypeScript and CSS tokens with hash navigation and small shared
+components, not an extra router/state/UI framework. SessionClient uses relative
+`/api` requests, browser-managed cookies, memory-only CSRF and epoch/generation
+checks plus AbortController to reject previous-session responses. Read effects also
+ignore unmounted views. A 403 revalidates identity without assuming CSRF expiry or
+replaying the mutation; transport/store failures do not mean unauthenticated.
+
+The main UI has catalog forms and image administration. Prices use bigint division/
+remainder; changed-field PATCH avoids overwriting untouched fields. Primary image
+paths must match the product/version/variant before `/api` is added once; arbitrary
+external descriptors are rejected. Native images use session cookies. FormData
+uses the same client without a manual multipart Content-Type. Object URLs are
+revoked at view/session/selection boundaries. Uncertain catalog/image writes need
+deliberate reads and user action rather than automatic replay.
+
+The 4C branch extends this client with an idempotency header and view-owned operation
+state, not persistent token/draft storage. Its specific refresh/logout retention
+behavior is described in [project status](project-status.md#implemented-only-on-inventory-web).
+It is not part of this main code baseline. [UI design](ui-design.md) records focus,
+responsive and contrast decisions; production web hosting remains planned.

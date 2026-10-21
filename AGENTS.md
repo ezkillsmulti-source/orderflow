@@ -19,7 +19,8 @@
 - Follow the task-focused commit policy in `CONTRIBUTING.md#task-focused-commits`.
 - Do not commit or push unless explicitly instructed.
 
-The backend foundation is implemented in `apps/api`; later features remain planned.
+Implementation and delivery state are recorded in `docs/project-status.md`.
+The API is in `apps/api` and the React frontend in `apps/web`.
 Use Node from `.nvmrc` and pnpm from `packageManager`. Run commands from the root:
 `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test`, `pnpm test:integration`, and `pnpm build`.

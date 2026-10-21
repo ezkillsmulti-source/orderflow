@@ -1,8 +1,7 @@
 # Backend product catalog
 
-Creation, listing, detail reads, editing, and archiving are implemented. Backend
-inventory is implemented separately; inventory UI and orders remain pending. Authentication/catalog React screens and real-API
-browser tests are implemented; see the [web walkthrough](development.md#manual-web-walkthrough).
+This contract defines the merged catalog and primary-image API. Delivery state and
+local-only frontend work are tracked in [project status](project-status.md).
 Catalog JSON does not expose writable stock fields; dedicated
 [inventory endpoints](inventory.md) own balances and immutable movements.
 
@@ -72,10 +71,10 @@ returned. Currency is ARS; 100 minor units equal ARS 1.00.
 - Reject non-object bodies, arrays, null, wrong types, and unknown fields.
   The existing JSON parser limit is 100 KiB.
 
-SKU/name/description policies are API validation; existing SQL enforces SKU
-uniqueness and monetary bounds. No new migration is needed, and previous migrations
-remain unchanged. Direct SQL writers must obey API policies themselves; these
-text bounds are not new SQL constraints.
+SKU/name/description text policies are API validation; SQL enforces SKU
+uniqueness and monetary bounds. Direct SQL writers must obey API text policies
+themselves. Additive image/inventory migrations extend persistence separately;
+historical migrations and the monetary CHECK must remain intact.
 
 ## Listing
 
@@ -121,7 +120,7 @@ contract; stock must be corrected with recorded movements before archive. Archiv
 changes active to false and never deletes a row. Only active
 rows are updated; an already archived row is read without a write. Repeating archive
 returns the existing representation without changing updatedAt. No reactivation or
-physical deletion endpoint is planned in this task. Future orders must reject archived
+physical deletion endpoint exists. Future orders must reject archived
 products and preserve immutable snapshots; orders are not implemented.
 
 ## Errors
@@ -155,7 +154,7 @@ back the whole statement. Read fallback only distinguishes missing/archived IDs 
 returns an existing archive; it does not authorize a later unconditional write. No
 physical deletion endpoint exists; inventory operations have their own contract.
 
-For an executable authenticated ADMIN/OPERATOR walkthrough, see
+For authenticated catalog verification instructions, see
 [development](development.md#manual-catalog-walkthrough).
 
 ## Primary image (milestone 4A backend)

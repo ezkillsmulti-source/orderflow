@@ -2,6 +2,10 @@
 
 Status: Accepted.
 
+Follow-up note: the future-business-role statement below describes the original
+authentication boundary. Catalog/image/inventory role checks are now implemented;
+order ownership is still planned. See [project status](../project-status.md).
+
 Use express-session with connect-pg-simple and the existing PostgreSQL server.
 The maintained store supports PostgreSQL 9.5+ and the pinned Node 24 runtime.
 Session IDs and cookie signing come from express-session; no custom session or

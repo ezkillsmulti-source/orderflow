@@ -9,6 +9,9 @@ relevant existing code or instructions before making changes.
 - Use a short-lived branch for each task, such as `docs/initial-scope` or
   `feat/product-catalog`.
 - Keep changes focused and commits small and coherent. Preserve unrelated work.
+- Check [project status](docs/project-status.md) and actual branches before choosing
+  a base; local-only implementation is not automatically part of main. Use an
+  isolated worktree when an active checkout or unfinished changes must be preserved.
 - Use Conventional Commit messages in English, such as
   `docs: define initial product scope` or `feat: add product listing`.
 - Inspect the working diff, stage only intended changes, and review
@@ -55,3 +58,20 @@ Never commit credentials, tokens, private keys, production data, or other sensit
 information. Use local configuration for secrets. An `.env.example` must
 contain placeholders only. Review staged content even when ignore rules exist;
 ignore rules do not protect files already tracked by Git.
+
+## Pull requests and integration
+
+Move from requirements to explicit contract/model, implementation, meaningful tests
+and relevant docs, then focused commits and a PR. Use the repository's protected
+main workflow: the inspected ruleset requires a PR, resolved review conversations,
+`backend` CI for the current HEAD and an up-to-date branch. That job includes web
+and browser checks despite its historical name. No approving review is required
+by the solo-project ruleset; this does not replace reviewing the complete diff.
+
+Preserve task-focused commits with a merge commit. Do not bypass checks, force-push
+main or delete protected branches. If updating a published task branch is needed,
+merge origin/main normally and wait for CI on its new HEAD rather than rewriting
+published history. Verify post-merge CI for the exact merge SHA; report pending or
+failed checks honestly before beginning dependent work. Rules can change: inspect
+the saved requirements before integrating rather than treating this snapshot as a
+permission override. Update project status only with actual delivery/acceptance.

@@ -1,7 +1,8 @@
 # Inventory API
 
-Milestone 4B implements backend balances, immutable history and atomic idempotent
-adjustments. Inventory UI (4C), orders, reservations and workers remain pending.
+This contract defines backend balances, immutable history and atomic idempotent
+adjustments. [Project status](project-status.md) distinguishes merged backend work
+from the local-only 4C UI. Orders, reservations and workers are not implemented.
 
 ## Reads
 

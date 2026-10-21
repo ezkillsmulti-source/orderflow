@@ -1,101 +1,61 @@
 # Roadmap
 
-Milestone 1 delivered the backend foundation. Milestone 2 has accounts, sessions,
-role authorization, the backend catalog, and the React authentication/catalog UI.
-Administrator forms and real-API browser workflows are implemented; the development
-guide records verification separately from production deployment. The [product scope](product-scope.md)
-remains the source of business rules.
+This document defines deliverables and acceptance criteria, not release status.
+[Project status](project-status.md) is authoritative for merged, branch-only and
+pending work. [Product scope](product-scope.md) retains first-release business rules.
 
 ## 1. Reproducible backend foundation
 
-Implemented: a pinned pnpm workspace, NestJS API with validated environment
-configuration, liveness and bounded PostgreSQL readiness checks, graceful shutdown,
-Prisma schema and initial constrained Product migration, local PostgreSQL Compose,
-unit/HTTP and isolated real-database integration tests, and a CI workflow.
-
-The [development guide](development.md) defines setup and checks and includes a
-dated verification record. Isolated Docker Compose startup, volume persistence
-across container recreation, cleanup, and a hosted backend CI run have passed;
-the guide links the specific CI run, and PR checks show results for later commits.
-That foundation increment did not include frontend, authentication, business endpoints,
-Redis, or a worker; the catalog increment below adds authentication and products.
+Deliver pinned tooling, a modular NestJS API, PostgreSQL/Prisma migrations,
+validated configuration, liveness/readiness, graceful shutdown and CI with isolated
+database tests. Acceptance requires repeatable install/build/check commands,
+migration compatibility and persistence across ordinary database restarts.
 
 ## 2. Authenticated product catalog
 
-Implemented groundwork: User persistence, explicit ADMIN/OPERATOR roles, normalized
-email uniqueness, Argon2id password hashing, and explicit development provisioning,
-PostgreSQL-backed sessions with idle/absolute expiry, CSRF/origin protection,
-login/me/logout endpoints, current-user authentication, and shared login throttling.
-Current-role authorization and catalog creation, listing, detail reads, editing, and
-archiving are implemented. The React/Vite UI supports login/logout, identity restoration,
-read-only browsing for both roles, and administrator create/edit/archive workflows.
-Browser tests cover desktop/mobile Chromium with the real API and isolated PostgreSQL.
-Order ownership authorization, inventory, production account provisioning, and hosting
-remain pending. The
-[catalog contract](product-catalog.md) records the approved policies. Use ARS integer
-minor units with the documented numeric bounds and exact arithmetic; zero initial stock
-remains a requirement for the later inventory implementation.
-
-Completion: provisioned users can demonstrate their permitted catalog actions;
-backend tests cover session rotation, logout invalidation, CSRF rejection,
-production cookie requirements, role denials, unique SKUs, archiving, numeric
-bounds, and price validation. Lists use bounded, deterministic pagination. A
-browser test demonstrates the authenticated catalog workflow.
+Deliver provisioned roles, Argon2id passwords, PostgreSQL session login/me/logout,
+CSRF/origin protection and shared throttling. Add exact-money catalog APIs and
+React login/browsing/ADMIN forms. Acceptance covers current-role authorization,
+session rotation/invalidation, strict validation, duplicate SKUs, archiving,
+bounded lists and real-API browser workflows.
 
 ## 3. Product workspace redesign
 
-Scope change: improve the existing authenticated product workspace before adding
-inventory. Inventory and every subsequent milestone move forward by one number;
-their business rules and acceptance criteria are retained unchanged.
-
-Implemented: a cohesive warm, light interface with restrained burgundy accents,
-shared design tokens, working navigation, catalog hierarchy, read-only operator
-workflows, grouped forms, product details, and archive confirmation. It uses existing
-API data and contracts; no inventory, orders, new backend behavior, or placeholder metrics.
-
-Completion: ADMIN and OPERATOR workflows pass against the real API and an isolated
-PostgreSQL database. Login, list, detail, create/edit, and archive confirmation are
-reviewed on desktop and narrow mobile screens. Keyboard/focus, errors, long content,
-exact maximum prices, page reflow, and actual text/non-text contrast are checked.
-Verification passed locally: 43 web tests, 30 real-API browser checks, formatting,
-lint, typecheck, and both builds. Rendered screens were inspected at 1280x900 and
-390x844, with additional 320px long-content/reflow and contrast checks. Automated
-checks do not establish full accessibility compliance. See [UI design](ui-design.md)
-and the [verification record](development.md#product-workspace-redesign-verification--2026-10-19).
+Scope change: the catalog workspace redesign precedes inventory; inventory and
+subsequent milestones moved forward without dropping business requirements.
+Deliver the warm burgundy, responsive, accessible working catalog with useful
+empty/error/loading states, role-aware actions, forms and confirmation focus.
+Acceptance includes ADMIN/OPERATOR workflows, desktop/narrow layouts, keyboard,
+long content, maximum prices and actual contrast checks. Automated checks do not
+replace manual accessibility review. See [UI design](ui-design.md).
 
 ## 4A. Product images
 
-Implemented backend increment: one optional primary image, validated ADMIN
-upload/replacement/removal on active products, authenticated variant reads for both
-roles including archives, and bounded recoverable cleanup. The lifecycle and limits
-are recorded in the catalog contract and storage ADR. Browser thumbnail/detail display and accessible image fallbacks are implemented.
-Active ADMIN details now support local preview, explicit upload/replacement, and
-accessible confirmed removal. OPERATOR and archives remain read-only. Milestone 4A's
-one-primary-image scope is implemented and verified locally: 58 web tests and 52
-real-API desktop/mobile browser cases pass, including all existing catalog flows.
-Image load/absence/failure, request protection, uncertain outcomes, preview cleanup,
-keyboard/focus, contrast and responsive layout were checked. See development and UI
-design verification records. Production hosting, object storage and a gallery remain
-deferred; this completion does not imply deployment or full accessibility compliance.
+Deliver one optional primary image, authenticated thumbnail/detail access, validated
+ADMIN add/replace/remove on active products and recoverable private storage cleanup.
+Acceptance includes content/size/dimension limits, metadata stripping, image/archive/
+cleanup races, failure recovery and real browser display/management. Gallery,
+object storage and production hosting are separate decisions.
 
 ## 4B/4C. Accountable inventory
 
-4B implements backend zero-initialized balances, authenticated reads, immutable
-adjustment history and atomic per-actor idempotent ADMIN adjustments. Positive
-stock prevents archival under the shared product-row lock. See the
-[inventory contract](inventory.md) and [ADR 0006](decisions/0006-inventory-ledger.md).
-4C remains planned and delivers the inventory workspace using real API data.
-Reservations remain milestone 5. Backend completion does not complete the combined
-user-facing 4B/4C acceptance criteria.
+Deliver backend balances/history and a product-detail workspace with ADMIN
+adjustments and both-role reads. New products start at zero; history records
+signed delta, reason, actor and historical balance atomically with stock. Positive
+stock blocks archive; correction uses compensating movements. Exact bounds,
+retained idempotency keys, row-lock coordination, bounded cursor history and
+uncertain-outcome recovery follow the [inventory contract](inventory.md) and
+[ADR 0006](decisions/0006-inventory-ledger.md).
 
-Deliver available-stock visibility and administrator adjustments using signed
-integer deltas, non-empty reasons, and authenticated actors. The backend history
-contract is selected; its user-facing interface remains pending.
-
-Completion: a user can demonstrate an adjustment and inspect its recorded reason
-and actor through the agreed interface. Backend tests verify authorization,
-attribution, atomic records and stock changes, numeric bounds, and rejection of
-changes that would reduce on-hand stock below reserved stock.
+Acceptance requires a user to demonstrate adjustments and inspect attribution,
+reason and balance through the UI. Tests cover authorization, atomicity, concurrent
+decrements/overflow, rollback, duplicate keys and archival races. The UI must retain
+uncertain operations for deliberate same-key retry and refresh current reads after
+replay. Full milestone 4 acceptance also checks image/catalog/session regressions.
+4C's local implementation is not a release on main; the status document records
+its review/CI/manual acceptance work. Reservations remain milestone 5: until then
+reserved is derived zero and available equals on-hand. Later adjustments must also
+reject reductions below active reservations.
 
 ## 5. Orders and reservations — first-release behavior
 
