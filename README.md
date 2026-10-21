@@ -1,6 +1,6 @@
 # OrderFlow
 
-OrderFlow is a planned application for small businesses to manage products, inventory,
+OrderFlow is a planned application for small businesses to manage products,, inventory,
 and orders. The backend foundation is implemented: a NestJS API, PostgreSQL/Prisma
 schema and initial migration, health routes, automated tests, and a GitHub Actions
 workflow. User persistence with normalized unique emails and ADMIN/OPERATOR roles,
