@@ -12,10 +12,7 @@ should be read as evidence that an unmerged branch is available on `main`.
 | Documentation                               | `docs/developer-handoff`, based on that main commit                      | Documentation-only handoff; no runtime changes         |
 | Inventory frontend 4C                       | Local `feat/inventory-web` at `fc0971eca4f509fad51b953232d807b197b1a5e4` | Implemented, unmerged and unpublished at this snapshot |
 
-At baseline inspection, both working trees were clean. Fetching origin confirmed
-the main baseline above; no open PRs were returned at that inspection. The remote feature branches are retained
-history, not evidence of unfinished work: their task commits are included in main.
-The exception is local `feat/inventory-web`, whose two commits are absent from main:
+The two local `feat/inventory-web` commits are absent from this main baseline:
 
 - `114359cf242fed0a2df4517f0d2a89211742dd45` — inventory balances and movement history.
 - `fc0971eca4f509fad51b953232d807b197b1a5e4` — idempotent inventory adjustments.
@@ -78,7 +75,19 @@ refer to `fc0971e`, not to code merged into this documentation baseline.
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main baseline | [CI run 39354393598](https://github.com/ezkillsmulti-source/orderflow/actions/runs/39354393598), exact SHA `38a2a44ae96796d9e9faa1449fd2800df2ee3d2c` | Hosted `backend` job succeeded; the workflow includes API/web checks, PostgreSQL integration and Chromium browser tests                                                                 |
 | Local 4C      | Verification record in `fc0971e:docs/development.md`                                                                                                  | Previously recorded 78 web tests, 84 full browser cases plus two focused cases, formatting/lint/types and both builds; not a fresh run during this documentation task and not hosted CI |
-| Documentation | Checks recorded in [development](development.md#documentation-verification)                                                                           | Link, diagram, scope and formatting checks are separate from application verification                                                                                                   |
+| Documentation | Review procedure in [development](development.md#documentation-verification)                                                                          | Link, diagram, scope and formatting checks are separate from application verification                                                                                                   |
+
+Historical UI verification is retained in
+`38a2a44:docs/development.md` under the dated redesign and image frontend sections:
+
+- Workspace redesign: 43 web tests and 30 real-API Chromium cases, plus formatting,
+  lint, types and both builds; visual review at 1280×900 and 390×844 and selected
+  320px keyboard, long-content, exact-price, reflow and contrast checks.
+- Image frontend: 58 web tests and 52 real-API Chromium cases, including 20 image
+  cases for decoded reads, ADMIN management, role/session boundaries, preview
+  disposal and uncertain committed responses; desktop/mobile visual and focus checks.
+
+These are historical local results, not additional hosted runs or fresh verification.
 
 The foundation's isolated Compose persistence record is retained in Git at
 `b3e6710:docs/development.md`: a disposable Product and migration history survived

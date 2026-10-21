@@ -38,19 +38,6 @@ pnpm --version
 Expected version output is `v24.22.0` and `10.34.7`. A manager's `nvm use` command
 is an alternative only if nvm is actually installed; it is not a prerequisite.
 
-An optional pre-existing isolated toolchain used in this development environment
-has wrappers under `$HOME/.local/share/orderflow/toolchains/bin`. If present, select
-it in **each terminal** instead of installing/changing global tools:
-
-```sh
-export PATH="$HOME/.local/share/orderflow/toolchains/bin:$PATH"
-node --version
-pnpm --version
-```
-
-That path is an environment-specific convenience, not a committed bootstrapper or
-portable installation requirement. Do not rely on toolchains in temporary folders.
-
 ## Environment and local PostgreSQL
 
 ### Check prerequisites before configuration
@@ -600,19 +587,9 @@ Markdown paths/heading anchors, terminology, Mermaid syntax when a renderer/pars
 is available, and formatting with `pnpm format:check`. Diagram review must preserve
 middleware/guard/controller ordering and implemented-vs-future boundaries.
 
-This documentation task uses safe source/Git/CI inspection and documentation checks.
-It does not run application migrations, provisioning, image cleanup apply, test DB
-creation, builds or application suites against user resources. Historical evidence
-is retained by commit/run in [project status](project-status.md), not relabeled as
-fresh tests. The previous chronological execution records were consolidated there;
-contracts, SQL guarantees, failure recovery and ADRs remain first-class references.
-
-Documentation-pass checks: Node/pnpm version output matched 24.22.0/10.34.7;
-`pnpm format:check` passed using the existing pinned tooling; all 92 local Markdown
-links/anchors across 18 documents resolved. Every root/API/web script was matched
-to the reference. Shell blocks passed `bash -n`, and the API walkthrough passed
-Node's module syntax check without execution. Both Mermaid blocks received manual
-and structural checks; no Mermaid renderer/parser was available, so rendered
-GitHub output was not verified. External HTTP links were not exhaustively fetched.
-No install, secret generation, daemon startup, migration, provisioning, cleanup,
-application tests or build was executed for this documentation-only pass.
+For documentation-only changes, use source/Git/CI inspection and documentation
+checks. Do not run migrations, provisioning, storage cleanup, builds or application
+suites solely to verify prose. Keep application verification evidence attached to
+its commit/run in [project status](project-status.md); do not relabel historical
+results as fresh tests. Record checks actually performed and rendering limitations
+in the documentation PR.
